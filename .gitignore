@@ -1,0 +1,10 @@
+# Rust
+/target/
+
+# Proyecto original, solo de consulta (tiene su propio repo)
+/pyBashResume/
+
+# Ficheros de ejecución locales
+state.json
+migration.log
+/steps/

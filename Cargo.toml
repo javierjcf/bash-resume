@@ -1,0 +1,13 @@
+[package]
+name = "stepwise"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+chrono = { version = "0.4.45", default-features = false, features = ["clock"] }
+clap = { version = "4.6.7", features = ["derive"] }
+ratatui = { version = "0.30.2", default-features = false, features = ["crossterm", "std", "layout-cache"] }
+rustix = { version = "1.1.6", features = ["pty", "process", "event", "fs"] }
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = "1.0.154"
+signal-hook = "0.3"
