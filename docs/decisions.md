@@ -55,3 +55,10 @@ Se activan solo los features `crossterm`, `std` y `layout-cache`, sin widgets ex
 - Comentarios, docstrings (`///`), mensajes al usuario y documentación en **español**.
 - Código formateado con `cargo fmt` y sin avisos de `cargo clippy -- -D warnings`.
 - Sin `unsafe`. Sin `unwrap()` fuera de los tests; en su lugar, se propagan los errores con `?`.
+
+## D7 — Librería + binario fino, módulos planos
+
+**Contexto.** Queremos testear casi todo y mantener `main` legible.
+**Decisión.** `src/lib.rs` con toda la lógica y `src/main.rs` mínimo (RB 12.3). Un fichero por módulo, sin
+subcarpetas. Tests unitarios en cada módulo y de integración en `tests/`. Detalle en [architecture.md](architecture.md).
+**Alternativas.** Todo en el binario: no permite tests de integración en `tests/` y mezcla el arranque con la lógica.

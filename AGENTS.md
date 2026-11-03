@@ -6,7 +6,7 @@ solo de consulta e ignorado por git). Este proyecto es también un **proyecto de
 ## Antes de empezar cualquier sesión
 
 1. Lee [docs/tasks.md](docs/tasks.md) y localiza la tarea `[~]` o la siguiente `[ ]`.
-2. El comportamiento está en [docs/spec.md](docs/spec.md) y las decisiones en [docs/decisions.md](docs/decisions.md). No las contradigas sin proponer antes un cambio.
+2. El comportamiento está en [docs/spec.md](docs/spec.md), la organización del código en [docs/architecture.md](docs/architecture.md) y las decisiones en [docs/decisions.md](docs/decisions.md). No las contradigas sin proponer antes un cambio.
 3. Si hay dudas sobre el comportamiento original, consulta `pyBashResume/*.py`.
 
 ## Modo de trabajo: enseñanza

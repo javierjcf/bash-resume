@@ -6,7 +6,7 @@ Cada tarea deja el proyecto **compilando y con los tests en verde**. Las referen
 | # | Estado | Tarea |
 |---|---|---|
 | T0 | [x] | Andamiaje del proyecto y docs |
-| T1 | [ ] | `parser`: clasificar líneas |
+| T1 | [~] | `parser`: clasificar líneas |
 | T2 | [ ] | `parser`: listar ficheros y leerlos |
 | T3 | [ ] | `cli` con clap |
 | T4 | [ ] | `state`: state.json |
@@ -62,8 +62,8 @@ Cada tarea deja el proyecto **compilando y con los tests en verde**. Las referen
 - **Aceptación:** tests de integración en un directorio temporal: avance del estado entre ficheros, parada en `stop`, fallo con `onerror` y modo una vez.
 - **Rust:** slices, índices (`usize`), `enumerate`/`skip`, retornos tempranos, tests de integración.
 
-### T8 — `main`: flujo completo → **MVP** (§2, §7.1)
-- **Hace:** resolución de home, `execution_path` y `steps_path`; `choose_action` (Y/O/N; M avisa "aún no disponible") y `chdir`.
+### T8 — `app`: flujo completo → **MVP** (§2, §7.1)
+- **Hace:** en `app.rs`, resolución de home, `execution_path` y `steps_path`; `choose_action` (Y/O/N; M avisa "aún no disponible") y `chdir`.
 - **Aceptación:** se usa de verdad con los pasos de ejemplo, sin menú ni PTY.
 - **Rust:** leer de stdin, organización de `main`, `Box<dyn Error>`, `std::process::exit`.
 
