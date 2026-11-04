@@ -6,6 +6,7 @@ pub mod cli;
 pub mod exec;
 pub mod log;
 pub mod parser;
+pub mod runner;
 pub mod state;
 
 #[cfg(test)]

@@ -60,11 +60,13 @@ o desde cualquier punto elegido en un menú interactivo.
 2. Para cada línea:
    - `empty` / `comment` → se salta.
    - `log` → se escribe en el log.
-   - `stop` → se guarda el estado en esa línea, se muestra `Parada en línea de stop: …` y **fin**.
+   - `stop` → se guarda el estado en esa línea, se registra como WARNING y **fin**. Al reanudar con "Continuar" se vuelve a parar en el mismo `#.` (como en Python); para pasarlo hay que elegir otra línea en el menú.
    - `cmd` → se ejecuta:
      - **Fallo:** se guarda el estado en esa línea, se ejecuta `onerror` y **fin**.
      - **Éxito:** el estado avanza al **siguiente `cmd`** (en este fichero o en los siguientes). Si no hay más, se queda en el que se acaba de ejecutar. En modo **una vez**, **fin** tras este primer `cmd` ejecutado.
 3. Cuando se terminan los ficheros: `Procesado todos los ficheros disponibles.`
+4. El recorrido devuelve cómo terminó (terminado, parada, fallo o una vez) para que el flujo principal decida qué mostrar.
+5. Cada fichero se lee al llegar a él, así que se pueden editar los pasos siguientes mientras se ejecutan los anteriores.
 
 ### onerror
 

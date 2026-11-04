@@ -78,7 +78,7 @@ Si un módulo creciera mucho, pasaría a ser una carpeta: `src/menu.rs` + `src/m
 | Tipo | Dónde | Qué prueba |
 |---|---|---|
 | Unitarios | Al final de cada fichero, en `#[cfg(test)] mod tests { … }` | Funciones del módulo, incluidas las privadas. Las utilidades comunes (como `temp_dir`) están en `src/testutil.rs` |
-| Integración | `tests/*.rs` | La API pública de la librería, como la usaría el binario |
+| Integración | `tests/*.rs` | La API pública de la librería, como la usaría el binario. No ven `testutil` (que es `#[cfg(test)]` de la librería), así que tienen sus propios helpers |
 
 `#[cfg(test)]` hace que ese código **solo se compile** al ejecutar `cargo test`; no llega al binario (RB 11.3).
 

@@ -12,7 +12,7 @@ Cada tarea deja el proyecto **compilando y con los tests en verde**. Las referen
 | T4 | [x] | `state`: state.json |
 | T5 | [x] | `log`: fichero + consola |
 | T6 | [x] | `exec` simple (sin PTY) |
-| T7 | [ ] | `runner`: recorrido de pasos |
+| T7 | [x] | `runner`: recorrido de pasos |
 | T8 | [ ] | `main`: flujo completo → **MVP** |
 | T9 | [ ] | `exec` con PTY + heurística |
 | T10 | [ ] | Ctrl+C |
@@ -58,7 +58,7 @@ Cada tarea deja el proyecto **compilando y con los tests en verde**. Las referen
 - **Rust:** `std::process::Command`, `ExitStatus`, `Instant` y `Duration`.
 
 ### T7 — `runner`: recorrido de pasos (§5)
-- **Hace:** `run_steps`, búsqueda del siguiente `cmd`, `stop`, `once` y `onerror`.
+- **Hace:** `run_steps(...) -> io::Result<Outcome>`, búsqueda del siguiente `cmd`, `stop`, `once`, `onerror` y `State::set_position`.
 - **Aceptación:** tests de integración en un directorio temporal: avance del estado entre ficheros, parada en `stop`, fallo con `onerror` y modo una vez.
 - **Rust:** slices, índices (`usize`), `enumerate`/`skip`, retornos tempranos, tests de integración.
 

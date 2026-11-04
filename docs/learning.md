@@ -249,3 +249,38 @@ Rust Book: <https://doc.rust-lang.org/book/> (abreviado **RB**, por ejemplo RB 7
 **Tests con procesos**
 - La salida de los hijos no la captura `cargo test` (va a la terminal real). Por eso los tests usan comandos silenciosos (`true`, `false`, `exit 3`, `test …`).
 - Funciones que devuelven tuplas: `fn setup(...) -> io::Result<(PathBuf, Logger)>` y `let (dir, log) = setup("x")?;` (desestructuración, como en Python).
+
+---
+
+## T7 — `runner`: recorrido de pasos
+
+**`&mut` que se presta como `&`**
+- `run_steps(..., log: &mut Logger, ...)` llama a `execute(..., log)`, que pide `&Logger`: Rust convierte `&mut T` en `&T` solo (*reborrow*). Mientras dura ese préstamo de lectura, el `&mut` queda "congelado".
+- `state: &mut State` porque el recorrido **modifica** el estado (`set_position`). La firma lo anuncia: quien llama sabe que su estado va a cambiar.
+
+**El error clásico: leer y modificar a la vez (`E0502`)**
+- `let current = state.current_file.as_ref();` + `state.set_position(...)` + usar `current` → *cannot borrow `state` as mutable because it is also borrowed as immutable*.
+- Es la regla "o muchos lectores o un solo escritor". En Python funcionaría, y `current` vería un valor ya cambiado (o un objeto a medio modificar).
+- Cómo se evita en el runner: sacar lo que se necesita como valor `Copy` (`position(...)` devuelve un `usize`), y el préstamo termina en esa misma línea.
+
+**Slices: `&[T]`** (RB 4.3)
+- `files: &[String]` y `lines: &[Line]` = vista prestada de un `Vec` (o de parte de él). `&files[fi + 1..]` = "desde `fi + 1` hasta el final", sin copiar. Es el `&str` de las listas.
+- Regla práctica: si una función solo lee una lista, recibe `&[T]`, no `&Vec<T>`.
+
+**Lifetimes implícitos (*elision*)** (RB 10.3)
+- `fn first_command(lines: &[Line], from: usize) -> Option<(usize, &Line)>`: el `&Line` devuelto apunta **dentro** de `lines`. No hace falta escribir `'a` porque solo hay un parámetro que sea referencia: el compilador deduce que lo devuelto vive tanto como `lines`.
+- Por eso, en `next_command`, se hace `line.text.clone()` antes de devolver la `Position`: el `Vec` de líneas del fichero siguiente se libera al terminar la iteración, y la posición tiene que sobrevivir.
+
+**Iteradores con estado de posición**
+- `.iter().enumerate().skip(n)` mantiene los índices originales (no empieza en 0 tras el `skip`).
+- `.position(|f| ...)` → `Option<usize>` del primer elemento que cumple (≈ `list.index()`, pero sin excepción).
+- `.find(|(_, line)| ...)` → `Option` del primer elemento; el patrón `(_, line)` desestructura la tupla en los argumentos de la closure.
+- `saturating_sub(1)`: resta sin bajar de 0 (alternativa a `checked_sub`, que devolvía `None`).
+
+**Enums como resultado (`Outcome`, `Mode`)**
+- Mejor que `bool` o que imprimir dentro: quien llama hace `match` y decide. `Mode::Once` se lee mejor que un `true` suelto en la llamada.
+
+**Tests de integración** (RB 11.3)
+- Cada fichero de `tests/` es un **crate aparte** que solo ve lo `pub` (`use stepwise::...`). No ven `#[cfg(test)]` de la librería: por eso tienen su propio helper.
+- `struct Project` con `impl Drop`: al salir del test (aunque falle con panic), `drop` borra el directorio temporal. Es RAII hecho a mano: el `Drop` de Rust es el `__exit__` de un `with`, pero automático.
+- Comandos que escriben en `out` (`echo a >> out`) permiten comprobar qué se ejecutó y en qué orden, sin capturar la salida.

@@ -54,6 +54,14 @@ impl State {
         fs::write(&self.path, json + "\n")
     }
 
+    /// Guarda la posición del siguiente comando (línea 1-based) y escribe el estado.
+    pub fn set_position(&mut self, file: &str, command: &str, line: usize) -> io::Result<()> {
+        self.current_file = Some(file.to_string());
+        self.last_command = Some(command.to_string());
+        self.last_line_index = Some(line);
+        self.save()
+    }
+
     /// Indica si el estado apunta a una línea que existe en `steps_dir` y sigue teniendo el mismo comando.
     pub fn is_valid(&self, steps_dir: &Path) -> bool {
         self.position_matches(steps_dir).unwrap_or(false)

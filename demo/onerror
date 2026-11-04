@@ -1,0 +1,2 @@
+# Se ejecuta si falla un comando. En un caso real: telegram-send "❌ Ha ocurrido un error"
+echo "❌ onerror: aquí iría el aviso (telegram-send...)"

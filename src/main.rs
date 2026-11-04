@@ -3,29 +3,31 @@ use std::path::Path;
 
 use clap::Parser;
 use stepwise::cli::Args;
-use stepwise::exec::execute;
 use stepwise::log::Logger;
-use stepwise::parser::{Kind, parse_file};
+use stepwise::runner::{Mode, run_steps};
+use stepwise::state::State;
 
 fn main() -> io::Result<()> {
     let args = Args::parse();
 
-    // Demo provisional de T6: ejecuta los comandos de un fichero. El runner real llega en T7.
+    // Demo provisional de T7: ejecuta desde el estado guardado, sin preguntar. Las preguntas llegan en T8.
     let home = args.home.as_deref().unwrap_or(Path::new("demo"));
     let steps = args.steps.as_deref().unwrap_or(Path::new("demo/steps"));
     let workdir = match args.workdir {
         Some(dir) => dir,
         None => std::env::current_dir()?,
     };
+    let mode = match std::env::var("STEPWISE_ONCE") {
+        Ok(_) => Mode::Once,
+        Err(_) => Mode::All,
+    };
 
     let mut log = Logger::open(&home.join("migration.log"))?;
-    log.set_source(Some("01-preparar"));
+    let mut state = State::load(&home.join("state.json"))?;
+    let onerror = home.join("onerror");
 
-    for line in parse_file(&steps.join("01-preparar"))? {
-        if line.kind == Kind::Cmd && !execute(&line.text, &workdir, &log) {
-            log.error("Parada: ha fallado un comando");
-            break;
-        }
-    }
+    let outcome = run_steps(&mut state, steps, &workdir, &onerror, &mut log, mode)?;
+    println!("\n> Resultado: {outcome:?}");
+    print!("{state}");
     Ok(())
 }
