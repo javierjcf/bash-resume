@@ -16,11 +16,11 @@ Nada de esto está decidido: si se hace una, pasa a [tasks.md](tasks.md), con su
 - Los comandos usan la terminal directamente: colores, barras de progreso y prompts funcionan.
 
 **Dónde se queda corto para el objetivo**
-- **Un fallo te saca del programa.** Hay que relanzar, ver el resumen y volver a confirmar. En una
-  migración de horas, con muchos reintentos, eso son pasos de más.
-- **No sirve para ejecuciones desatendidas.** Siempre pregunta al arrancar, así que no se puede lanzar
-  desde un script, `nohup` o `cron` sin trucos (`printf 'y\n' |`).
-- **Se sabe poco del progreso:** ni cuántos pasos quedan ni cuánto tardó la última vez cada uno.
+- **Relanzar obliga a confirmar.** Que un fallo saque del programa es **intencionado**: imita a un script
+  de bash y obliga a intervenir a mano. Lo que sobra es que, al volver, haya que pasar por la pregunta
+  para continuar. Por lo mismo, tampoco se puede lanzar desatendido (script, `nohup`, `cron`) sin trucos
+  como `printf 'y\n' |`. Lo resuelven los flags `-y`/`-o` (abajo).
+- **Se sabe poco del progreso:** ni cuántos pasos quedan ni cuánto tarda cada fichero o la migración entera.
 - **Dos rarezas heredadas de Python** (mantenidas a propósito): al reanudar en un `#.` se vuelve a parar,
   y al terminar todo, "Continuar" repite el último comando.
 
@@ -28,17 +28,18 @@ Nada de esto está decidido: si se hace una, pasa a [tasks.md](tasks.md), con su
 
 | Idea | Qué resuelve | Esfuerzo |
 |---|---|---|
-| **Preguntar tras un fallo o un Ctrl+C**: `[R] Reintentar \| [S] Saltar y seguir \| [M] Menú \| [N] Salir` | El ciclo "falla → arreglo → reintento" sin salir del programa. `onerror` se lanzaría solo al salir (o siempre, configurable). Encaja como un bucle en `app` alrededor de `run_steps` | Bajo |
+| **Relanzar sin preguntar: `-y/--yes` y `-o/--once`** | `-y` continúa desde el estado guardado sin preguntar; `-o` ejecuta un solo comando sin preguntar. Si el estado no es válido o falta una ruta, **error** (código 1) en vez de abrir el menú o preguntar: sin terminal no hay a quién preguntar. Tras arreglar un fallo basta con `stepwise -y`, y vale para ejecuciones desatendidas. Encaje: dos flags en `cli.rs`, un atajo en `app::run` antes de `choose_action` y `pick_dir` sin preguntar cuando hay flag. ~40 líneas y tests | Bajo |
+| **Tiempos por comando, por fichero y total** | Ya se registra `Tiempo de ejecución` de cada comando (`exec.rs`). Faltaría el tiempo de cada fichero al salir de él y el total de la ejecución al terminar, por el logger (pantalla y `migration.log`). Si termina con éxito el último fichero, un resumen con la tabla por fichero y el total. Encaje: `Instant` en `runner.rs` alrededor de cada fichero y de `run_steps`, reutilizando `format_duration`. **Limitación:** son tiempos de *esta* ejecución. Si hubo un fallo y se reanudó, el resumen no cubre lo anterior y no es representativo; es útil sobre todo con una migración ya ensayada que va de principio a fin. **Pendiente de decidir:** acumularlos entre reanudaciones (¿en `state.json`, o en un fichero aparte del home?), poniéndolos a cero al empezar desde el principio. Relacionada con *Historial de ejecución* y *Progreso* | Bajo (sin acumular) / Medio (acumulando) |
 | **`[C] Continuar tras la parada`** en la pregunta inicial cuando el estado está en una línea `#.` | Quita la rareza de la parada sin cambiar el comportamiento por defecto (no hace falta ir al menú) | Muy bajo |
-| **Modo no interactivo**: `--yes` (continuar sin preguntar) y `--once` | Ejecuciones desatendidas (`tmux`, `nohup`, CI). Con estado inválido, error en vez de menú | Bajo |
 | **Expandir `~`** en las rutas que se escriben en las preguntas | Hoy `~/migr` da "Ruta inválida" (el shell solo expande `~` en los argumentos, no en lo que se teclea) | Muy bajo |
-| **Progreso**: `[12/40]` en el log y en el resumen, y tiempo total al terminar | Saber cuánto queda en una migración larga | Bajo |
+| **Progreso**: `[12/40]` en el log y en el resumen | Saber cuánto queda en una migración larga | Bajo |
 | **Guardar una copia del estado corrupto** (`state.json.corrupto`) antes de recrearlo | Hoy se pierde la posición sin rastro; con la copia se puede recuperar a mano | Muy bajo |
 
 ## Útiles
 
 | Idea | Qué resuelve | Esfuerzo |
 |---|---|---|
+| **Preguntar tras un Ctrl+C**: `[R] Reintentar \| [S] Saltar y seguir \| [N] Salir` | Salir al fallar es intencionado (como bash), así que esto solo tendría sentido como opción, sobre todo tras un Ctrl+C, que es una interrupción voluntaria. Encajaría como un bucle en `app` alrededor de `run_steps` | Bajo |
 | **Más hooks junto a `onerror`**: `onstop` (al llegar a un `#.`) y `onfinish` (al terminar todo) | Avisos por Telegram al terminar o al llegar a una parada, sin escribir `telegram-send` en los pasos | Bajo |
 | **`--list` / `--dry-run`**: mostrar qué se ejecutaría desde la posición actual, sin ejecutar | Revisar el plan antes de una migración real | Bajo |
 | **`cd` persistente** con una marca `#cd dir` (cambia el directorio de las líneas siguientes) | Evitar repetir `cd odoo/custom && …` en muchas líneas | Bajo (solo el runner) |

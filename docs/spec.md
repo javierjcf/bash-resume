@@ -158,5 +158,5 @@ stepwise [WORKDIR] [-s|--steps DIR] [-H|--home DIR]
 
 ## Fuera de alcance y mejoras posibles
 
-Las ideas para el futuro (preguntar tras un fallo o un Ctrl+C, `cd` persistente, modo no interactivo…)
+Las ideas para el futuro (relanzar sin preguntar con `-y`/`-o`, tiempos por fichero y total, `cd` persistente…)
 están en [ideas.md](ideas.md).
