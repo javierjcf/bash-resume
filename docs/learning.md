@@ -179,3 +179,43 @@ Rust Book: <https://doc.rust-lang.org/book/> (abreviado **RB**, por ejemplo RB 7
 **Módulo de utilidades de test**
 - `#[cfg(test)] mod testutil;` en `lib.rs` + `pub(crate) fn temp_dir`: `pub(crate)` = visible en todo el crate pero no fuera. Evita duplicar helpers.
 - `r#"..."#` (*raw string*): no hace falta escapar las comillas, ideal para JSON.
+
+---
+
+## T5 — `log`: fichero + consola
+
+**Structs que poseen recursos (RAII)** (RB 15.3)
+- `Logger` es **dueño** de un `File` abierto. No hay `close()`: el fichero se cierra cuando el `Logger` se libera (al salir de `main`). Equivale a un `with open(...)` que dura lo que dure el objeto.
+- `OpenOptions::new().create(true).append(true).open(path)?` = `open(path, "a")` de Python: crea si no existe y añade al final.
+
+**Escribir con `&self`: el truco de `&File`**
+- Escribir necesita un escritor **mutable**: `writeln!(self.file, ...)` dentro de `fn info(&self)` da `E0596` (*cannot borrow `self.file` as mutable, as it is behind a `&` reference*).
+- Pero `Write` también está implementado para `&File` (el sistema operativo ya serializa las escrituras en un fichero), así que `writeln!(&self.file, ...)` funciona con `&self`.
+- Gracias a eso, `info`/`warn`/`error` piden `&self`: cualquiera con un préstamo de lectura del logger puede escribir.
+
+**`&self` frente a `&mut self` en la práctica**
+- `set_source(&mut self)` sí modifica el logger → necesita préstamo exclusivo, y la variable debe ser `let mut log`.
+- Mientras alguien tenga un `&log` vivo, no se puede llamar a `set_source` (préstamo exclusivo frente a compartido). En T7, el runner será el dueño (`&mut Logger`) y prestará `&Logger` a `exec` durante cada comando.
+- Alternativa que existe pero no necesitamos: *interior mutability* (`RefCell`, `Cell`) para modificar a través de `&self` (RB 15.5).
+
+**Globales frente a pasar el logger**
+- Python usa un `logger` global y un `_current_source` global. En Rust, una variable global mutable necesita `unsafe` o sincronización (`Mutex`). Lo idiomático es crear el logger una vez y pasarlo como parámetro: la firma dice quién lo usa.
+
+**Funciones puras para testear**
+- `format_line(timestamp, source, level, msg, color)` no toca el reloj ni ficheros: se testea con una fecha fija. `Logger::log` solo junta la fecha actual + `format_line` + escribir. Separar "calcular" de "hacer E/S" es la clave para testear sin trucos.
+
+**`&'static str`**
+- `fn name(self) -> &'static str` devuelve un literal: `'static` significa que vive durante todo el programa (está dentro del binario), así que se puede devolver sin problemas de préstamos.
+- `self` (sin `&`) en `Level`: como es `Copy`, recibirlo por valor es gratis.
+
+**Strings y formato**
+- `const BLUE: &str = "\x1b[34m";` → constante; `\x1b` es el carácter ESC de los códigos ANSI.
+- `format!("{BLUE}{timestamp}{RESET}")`: los nombres de variables y constantes van directamente dentro de `{}`.
+- `source.map(str::to_string)`: `Option<&str>` → `Option<String>`. `map` transforma lo de dentro si hay algo (RB 13.2).
+- `&line[19..]` corta por **bytes**: es seguro aquí porque la fecha es ASCII; con acentos podría caer en medio de un carácter y hacer panic.
+
+**Otros**
+- `io::stderr().is_terminal()` (trait `IsTerminal`, de std): ¿hay una terminal? Igual que `sys.stderr.isatty()`.
+- `eprintln!` escribe en stderr (≈ el `StreamHandler` de `logging`, que también va a stderr).
+- *Dead code*: Rust avisa de funciones, constantes o campos privados que nadie usa. Python no avisa nunca.
+- `chrono::Local::now().format("%Y-%m-%d %H:%M:%S")` = `datetime.now().strftime(...)`.

@@ -65,6 +65,47 @@ Para jugar y aprender. Todos se lanzan desde la raíz del proyecto.
 | `rustup show` | Toolchain activa y por qué |
 | `rustup component list --installed` | Componentes instalados |
 
+## Probar a mano
+
+La demo de `main.rs` cambia en cada tarea; estos comandos prueban lo que ya existe.
+Todo usa `demo/` (`state.json` y `migration.log` se crean ahí y git los ignora).
+
+**Ayuda y argumentos (T3)**
+```bash
+cargo run -- --help
+cargo run -- --steps-path x            # flag incorrecto: sugerencia y código 2
+echo $?                                # código de salida del último comando
+STEPWISE_HOME=/tmp cargo run           # home desde variable de entorno
+```
+
+**Estado (T4)**
+```bash
+rm -f demo/state.json && cargo run     # sin estado: lo crea vacío
+cat demo/state.json
+echo '{"current_file": "02-fallar", "last_command": "false", "last_line_index": 3}' > demo/state.json
+cargo run                              # estado válido
+echo '{ roto' > demo/state.json && cargo run   # corrupto: avisa y lo recrea
+```
+
+**Log (T5)**
+```bash
+cargo run                              # mensajes en consola, con colores
+cat demo/migration.log                 # lo mismo, sin colores y acumulado (append)
+cargo run 2>/dev/null                  # el log va a stderr: así no se ve nada
+cargo run 2>&1 | less -R               # sin terminal → sin colores
+tail -f demo/migration.log             # en otra terminal: ver el log en vivo
+```
+
+**Trucos de shell útiles**
+| Comando | Para qué |
+|---|---|
+| `cmd; echo $?` | Ver el código de salida (0 = bien) |
+| `cmd 2>/dev/null` / `cmd >/dev/null` | Ocultar stderr / stdout |
+| `cmd 2>&1 \| less -R` | Juntar stderr con stdout y paginar con colores |
+| `script -qc "cmd" /dev/null \| /usr/bin/cat -v` | Ejecutar con terminal falsa y ver los códigos ANSI |
+| `/usr/bin/cat` | El `cat` real (en esta máquina `cat` es un alias de `bat`) |
+| `./target/debug/stepwise --help` | El binario ya compilado, sin pasar por cargo |
+
 ## Experimentos rápidos
 
 - **Rompe un test:** cambia un `Kind::Log` esperado en `src/parser.rs`, ejecuta `cargo test` y lee el `left`/`right`.

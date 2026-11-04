@@ -121,7 +121,9 @@ En Python eran dos menús curses encadenados más una pregunta de confirmación.
 ## 8. Log (`migration.log` en home)
 
 - **Fichero** (en modo append), sin colores: `YYYY-mm-dd HH:MM:SS - [fichero] LEVEL   : mensaje`. El nivel se rellena hasta 8 caracteres.
-- **Consola:** el mismo formato, con colores ANSI (fecha azul; INFO verde, WARNING amarillo, ERROR rojo).
+- **Consola (stderr):** el mismo formato, con colores ANSI (fecha azul; INFO verde, WARNING amarillo, ERROR rojo).
+  **[cambio]** Solo hay colores si stderr es una terminal; redirigido a un fichero o una tubería, sale texto limpio.
+- Un error al escribir el log se ignora: el log nunca detiene la ejecución.
 - `[fichero]` es el fichero de pasos que se está procesando (u `onerror`). Si no hay ninguno, no se escribe.
 - Mensajes principales: `Ejecutando comando: …`, `🔚 Proceso finalizado correctamente (exit code: 0)`,
   `⚠️ Proceso finalizado con código de salida no cero: N`, `Comando fallido (exit code N): …`,

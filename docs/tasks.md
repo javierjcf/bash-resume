@@ -10,7 +10,7 @@ Cada tarea deja el proyecto **compilando y con los tests en verde**. Las referen
 | T2 | [x] | `parser`: listar ficheros y leerlos |
 | T3 | [x] | `cli` con clap |
 | T4 | [x] | `state`: state.json |
-| T5 | [ ] | `log`: fichero + consola |
+| T5 | [x] | `log`: fichero + consola |
 | T6 | [ ] | `exec` simple (sin PTY) |
 | T7 | [ ] | `runner`: recorrido de pasos |
 | T8 | [ ] | `main`: flujo completo → **MVP** |
