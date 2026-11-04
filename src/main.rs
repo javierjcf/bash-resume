@@ -1,4 +1,4 @@
-use stepwise::parser::classify;
+use stepwise::parser::Line;
 
 fn main() {
     // Demo provisional de T1: se sustituirá en T2.
@@ -10,6 +10,6 @@ fn main() {
         "   ",
     ];
     for line in samples {
-        println!("{:?} ← {line:?}", classify(line));
+        println!("{:?}", Line::new(line));
     }
 }
