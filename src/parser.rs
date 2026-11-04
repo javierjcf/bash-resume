@@ -1,4 +1,8 @@
-//! Ficheros de pasos: tipos de línea y clasificación (spec §3).
+//! Ficheros de pasos: tipos de línea, clasificación y lectura (spec §3).
+
+use std::fs;
+use std::io;
+use std::path::Path;
 
 /// Tipo de una línea de un fichero de pasos.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -46,6 +50,33 @@ pub fn classify(line: &str) -> Kind {
     }
 }
 
+/// Lista los ficheros de pasos de `dir` en orden alfabético.
+///
+/// Ignora los ocultos (que empiezan por `.`), los subdirectorios y los nombres que no son UTF-8.
+pub fn list_step_files(dir: &Path) -> io::Result<Vec<String>> {
+    let mut files = Vec::new();
+    for entry in fs::read_dir(dir)? {
+        let entry = entry?;
+        if !entry.path().is_file() {
+            continue;
+        }
+        let Ok(name) = entry.file_name().into_string() else {
+            continue;
+        };
+        if !name.starts_with('.') {
+            files.push(name);
+        }
+    }
+    files.sort();
+    Ok(files)
+}
+
+/// Lee un fichero de pasos y devuelve sus líneas clasificadas, sin el salto de línea.
+pub fn parse_file(path: &Path) -> io::Result<Vec<Line>> {
+    let content = fs::read_to_string(path)?;
+    Ok(content.lines().map(Line::new).collect())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -89,5 +120,50 @@ mod tests {
         let line = Line::new("  ls -la ");
         assert_eq!(line.kind, Kind::Cmd);
         assert_eq!(line.text, "  ls -la ");
+    }
+
+    /// Crea un directorio temporal vacío y único para cada test (se ejecutan en paralelo).
+    fn temp_dir(name: &str) -> io::Result<std::path::PathBuf> {
+        let dir = std::env::temp_dir().join(format!("stepwise-{name}-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&dir);
+        fs::create_dir_all(&dir)?;
+        Ok(dir)
+    }
+
+    #[test]
+    fn lists_files_sorted_without_hidden_or_dirs() -> io::Result<()> {
+        let dir = temp_dir("list")?;
+        fs::write(dir.join("02-b"), "")?;
+        fs::write(dir.join("01-a"), "")?;
+        fs::write(dir.join(".oculto"), "")?;
+        fs::create_dir(dir.join("subdir"))?;
+
+        assert_eq!(list_step_files(&dir)?, vec!["01-a", "02-b"]);
+
+        fs::remove_dir_all(&dir)
+    }
+
+    #[test]
+    fn list_fails_if_dir_missing() {
+        assert!(list_step_files(Path::new("/no/existe")).is_err());
+    }
+
+    #[test]
+    fn parses_file_into_classified_lines() -> io::Result<()> {
+        let dir = temp_dir("parse")?;
+        let file = dir.join("01-a");
+        fs::write(&file, "#> hola\nls -la\r\n\n# nota\n")?;
+
+        let lines = parse_file(&file)?;
+
+        let kinds: Vec<Kind> = lines.iter().map(|l| l.kind).collect();
+        assert_eq!(kinds, [Kind::Log, Kind::Cmd, Kind::Empty, Kind::Comment]);
+        assert_eq!(lines[1].text, "ls -la");
+        fs::remove_dir_all(&dir)
+    }
+
+    #[test]
+    fn parse_fails_if_file_missing() {
+        assert!(parse_file(Path::new("/no/existe")).is_err());
     }
 }

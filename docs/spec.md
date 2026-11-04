@@ -25,6 +25,9 @@ o desde cualquier punto elegido en un menú interactivo.
 ## 3. Ficheros de pasos
 
 - Son los ficheros de `steps_path` cuyo nombre **no empieza por `.`**, en **orden alfabético**.
+- **[cambio]** Se ignoran los subdirectorios (en Python se incluían y fallaba al intentar leerlos) y los nombres que no son UTF-8.
+- Se aceptan finales de línea `\n` y `\r\n` (en Python, el `\r` quedaba pegado al comando).
+- Hay un ejemplo en `demo/steps/`.
 - Cada línea se clasifica (sobre la línea sin espacios al inicio ni al final) por la **primera** regla que cumpla:
 
 | Prefijo | Tipo | Efecto |

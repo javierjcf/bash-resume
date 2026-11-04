@@ -60,3 +60,42 @@ Rust Book: <https://doc.rust-lang.org/book/> (abreviado **RB**, por ejemplo RB 7
 - `#[cfg(test)] mod tests` solo se compila con `cargo test`. `use super::*;` importa todo el módulo padre, incluido lo privado.
 - `#[test]` marca una función de test; `assert_eq!(real, esperado)`, y si falla muestra `left` y `right`.
 - `cargo test nombre` ejecuta solo los tests cuyo nombre contiene `nombre`.
+
+---
+
+## T2 — `parser`: listar ficheros y leerlos
+
+**Ownership y borrow checker** (RB 4.1–4.2)
+- Cada valor tiene **un dueño**, y cuando el dueño sale de su bloque `{}` el valor se libera (*drop*). No hay recolector de basura.
+- Prestar: `&x` (lectura, se pueden hacer muchos a la vez) o `&mut x` (escritura, solo uno, y sin lectores mientras dure).
+- Regla de oro: **un préstamo no puede vivir más que su dueño**. Si no se cumple, el error es `E0597` (use-after-free evitado al compilar; ver el ejemplo en C frente a Rust).
+- En `parse_file`: `content` (String) es el dueño; `.lines()` da ventanas `&str`; `Line::new` copia cada una a un `String` propio; `content` se libera al salir y el `Vec<Line>` sobrevive porque no depende de él.
+
+**`Result` y `?`** (RB 9.2)
+- `io::Result<T>` = `Result<T, io::Error>`: o `Ok(valor)` o `Err(error)`. La firma avisa de que la función puede fallar.
+- `x?` → si es `Err`, **devuelve** el error a quien llamó; si es `Ok`, saca el valor. Es el equivalente explícito de dejar subir una excepción en Python.
+- `main() -> io::Result<()>`: si llega un `Err`, se imprime (en formato Debug) y el proceso sale con código 1.
+- `let Ok(x) = expr else { continue; };` (*let-else*): desestructura o sale del bloque.
+- `let _ = expr;` ignora a propósito un `Result` (por ejemplo, borrar algo que quizá no exista).
+
+**Rutas: `&Path` frente a `PathBuf`** (std::path)
+- La misma pareja que `&str`/`String`: `&Path` prestada para leer, `PathBuf` propia. `dir.join("x")` crea un `PathBuf` nuevo.
+- Las rutas **no son `String`**: en Unix pueden no ser UTF-8. Por eso `file_name()` da un `OsString` y `.into_string()` puede fallar.
+
+**Leer ficheros: buenas prácticas**
+- `fs::read_to_string(path)?` abre, lee todo y **cierra solo** (RAII: el fichero se cierra cuando su dueño se libera). Equivale a `with open(...) as f: f.read()`.
+- Para ficheros pequeños, leer entero es lo simple. Para ficheros enormes, `BufReader::new(File::open(p)?).lines()` lee línea a línea.
+- `.lines()` corta por `\n` y quita también un `\r` final (ficheros de Windows).
+- Nada de `unwrap()` en código real: se propaga con `?` y se decide arriba qué hacer.
+
+**Iteradores** (RB 13.2)
+- Son perezosos: `content.lines().map(Line::new)` no hace nada hasta que algo los consume (`.collect()`, `for`).
+- `.collect()` construye la colección que indique el tipo de retorno (`Vec<Line>`).
+- `.map(Line::new)` pasa una función por nombre; equivale a `.map(|t| Line::new(t))`.
+- `.iter().enumerate()` da `(índice, &elemento)`, como `enumerate()` en Python.
+- Closures: `|l| l.kind` = `lambda l: l.kind`.
+
+**Otros**
+- *Shadowing*: `let dir = Path::new(&dir);` redefine `dir` con otro tipo. Es idiomático para transformar un valor.
+- `Vec::new()` + `push` + `sort()`. `vec!["a", "b"]` crea un `Vec` literal. `Vec<String>` se compara con `vec!["a"]` (de `&str`) gracias a `PartialEq`.
+- Tests que devuelven `io::Result<()>` pueden usar `?`. Los nombres de directorio temporal llevan el nombre del test + el PID, para que no choquen en paralelo.

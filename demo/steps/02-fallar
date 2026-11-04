@@ -1,0 +1,6 @@
+#> PROBANDO UN FALLO
+echo "el siguiente comando falla y lanza onerror"
+false
+echo "esto solo se ejecuta al reanudar"
+#. PARADA MANUAL: revisa antes de seguir
+echo "fin de la demo"

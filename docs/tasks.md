@@ -7,7 +7,7 @@ Cada tarea deja el proyecto **compilando y con los tests en verde**. Las referen
 |---|---|---|
 | T0 | [x] | Andamiaje del proyecto y docs |
 | T1 | [x] | `parser`: clasificar líneas |
-| T2 | [ ] | `parser`: listar ficheros y leerlos |
+| T2 | [x] | `parser`: listar ficheros y leerlos |
 | T3 | [ ] | `cli` con clap |
 | T4 | [ ] | `state`: state.json |
 | T5 | [ ] | `log`: fichero + consola |
