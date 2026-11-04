@@ -369,3 +369,33 @@ Rust Book: <https://doc.rust-lang.org/book/> (abreviado **RB**, por ejemplo RB 7
 
 **Guardas en `match` que no miran el valor**
 - `_ if interrupted => …` como primera rama: si se interrumpió, da igual cómo terminó el comando.
+
+---
+
+## T11 — `menu`: estado y teclas
+
+**Máquina de estados con enums**
+- El menú es un estado (`Menu`: panel, cursores) + una función de transición (`handle_key`) que lo cambia y dice qué pasa (`Outcome::Stay` / `Run(Choice)` / `Quit`).
+- `match (self.panel, key)` sobre una **tupla**: cada rama es "en este panel, esta tecla". Patrones con `|` (`Key::Up | Key::Char('k')`), comodín por posición (`(_, Key::Char('q'))`), guardas (`... if lines > 0`) y patrones anidados (`Key::Char('y' | 's')`).
+- La última rama `_ => {}` cubre todas las teclas que no hacen nada: sin ella no compilaría (exhaustividad).
+- Un `enum` puede llevar datos en una variante (`Run(Choice)`) y no en otras (`Stay`): es lo que en Python serían varios tipos de retorno mezclados (`None`, una tupla…).
+
+**Separar lógica de presentación (puertos y adaptadores, en pequeño)**
+- `Key` es **nuestro** enum, no el de crossterm: la lógica no depende de la librería de terminal. En T12 un adaptador traduce `crossterm::KeyEvent` → `Key`.
+- Todos los ficheros se cargan en `Menu::load` (E/S), y `Menu::new` + `handle_key` son lógica pura: los tests crean ficheros en memoria, sin disco ni terminal.
+
+**`&mut self` en un struct propio**
+- `handle_key(&mut self, ...)` modifica el cursor. Las longitudes se calculan **antes** del `match` (`let lines = self.current_lines().len();`): así no se mezcla un préstamo de lectura (`current_lines`) con las escrituras de las ramas.
+- `fn current_lines(&self) -> &[Line]`: devuelve un slice prestado del propio menú (lifetime implícito ligado a `&self`). `map_or(&[], |f| &f.lines)`: `&[]` es un slice vacío, y `&Vec<Line>` se convierte solo en `&[Line]`.
+
+**Aritmética circular con `usize`**
+- `(i + 1) % len` y `(i + len - 1) % len`: sumar `len` antes de restar evita bajar de 0 (con `usize`, `0 - 1` hace panic en debug). `len == 0` se trata aparte porque `% 0` también hace panic.
+
+**Privacidad por módulo (`E0451`)**
+- `State { campo: .., ..State::default() }` funciona dentro de `state.rs`, pero no desde `menu.rs`: `State` tiene un campo privado (`path`) y fuera de su módulo no se puede construir un `State` literal, ni siquiera "rellenando" con `..`. Solución: `let mut s = State::default();` y cambiar los campos públicos.
+- La privacidad en Rust es **por módulo**, no por tipo: cualquier código de `state.rs` ve `path`; nadie más.
+
+**Otros**
+- `bool::then_some(x)`: `Some(x)` si es `true`, `None` si no. `(text == command).then_some((file, line))`.
+- `Option::and_then` encadena operaciones que pueden no dar resultado: `current_file.as_ref().and_then(|n| files.iter().position(...))`.
+- `keys.iter().map(|&k| menu.handle_key(k)).last()`: los iteradores son perezosos, pero `.last()` los consume enteros, así que se pulsan todas las teclas. `|&k|` desestructura la referencia (como `Key` es `Copy`, se copia).

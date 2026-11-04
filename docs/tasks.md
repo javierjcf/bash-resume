@@ -16,7 +16,7 @@ Cada tarea deja el proyecto **compilando y con los tests en verde**. Las referen
 | T8 | [x] | `app`: flujo completo → **MVP** |
 | T9 | [-] | ~~`exec` con PTY + heurística~~ (D9) |
 | T10 | [x] | Ctrl+C durante un comando |
-| T11 | [ ] | `menu`: estado y teclas |
+| T11 | [x] | `menu`: estado y teclas |
 | T12 | [ ] | `menu`: render ratatui |
 | T13 | [ ] | Integración y verificación final |
 
@@ -78,7 +78,7 @@ Cada tarea deja el proyecto **compilando y con los tests en verde**. Las referen
 - **Verificación:** manual, con un Ctrl+C real (ver cheatsheet). Un test automático tendría que enviar señales al propio proceso de tests, que ejecuta tests en paralelo.
 
 ### T11 — `menu`: estado y teclas (§7.2)
-- **Hace:** `struct App` (panel activo, índices) y `fn handle_key(...) -> Option<Outcome>`, sin dibujar nada.
+- **Hace:** `struct Menu` (ficheros cargados, panel, cursores, posición guardada), `enum Key` propio y `fn handle_key(&mut self, Key) -> Outcome` (`Stay` / `Run(Choice)` / `Quit`), sin dibujar nada.
 - **Aceptación:** tests de navegación cíclica, cambio de panel, confirmación y fichero vacío.
 - **Rust:** máquina de estados con `enum`, separación entre lógica y presentación.
 

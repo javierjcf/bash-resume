@@ -111,17 +111,17 @@ En Python eran dos menús curses encadenados más una pregunta de confirmación.
 - **Panel izquierdo:** ficheros. El del estado actual va marcado con `●`.
 - **Panel derecho:** líneas del fichero seleccionado, con preview en vivo, número `[001]` y color por tipo (`log` verde, `stop` rojo, `comment` gris). La línea del estado guardado sale en amarillo.
 - **Barra inferior:** `fichero:línea → comando` y la ayuda de teclas.
-- Al abrirse, la selección inicial es la del estado (si coincide); si no, la primera.
+- Al abrirse, el foco está en ficheros, con el fichero del estado seleccionado (si existe); el cursor de líneas está en la línea guardada si sigue teniendo el mismo comando, y si no en la primera (como en Python).
+- Los ficheros se cargan todos al abrir el menú.
 
 | Tecla | Acción |
 |---|---|
-| `↑ ↓` / `k j` | mover (cíclico) |
-| `Tab` / `← →` | cambiar de panel |
-| `Enter` en ficheros | pasar al panel de líneas |
-| `Enter` / `y` en líneas | guardar la selección en el estado y **ejecutar** |
+| `↑ ↓` / `k j` | mover (cíclico); al cambiar de fichero, el cursor de líneas vuelve a su línea guardada o a la primera |
+| `Enter` / `→` / `Tab` en ficheros | pasar al panel de líneas (no en un fichero vacío) |
+| `Esc` / `←` / `Tab` en líneas | volver al panel de ficheros |
+| `Enter` / `y` / `s` en líneas | guardar la selección en el estado y **ejecutar** |
 | `o` en líneas | guardar la selección y ejecutar **una vez** |
-| `Esc` en líneas | volver al panel de ficheros |
-| `q` / `Esc` en ficheros | salir sin ejecutar |
+| `q` (en cualquier panel) / `Esc` en ficheros | salir sin ejecutar |
 
 - **[cambio]** No se puede confirmar en un fichero vacío. En Python esto provocaba un crash (`idx=None`).
 
