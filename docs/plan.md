@@ -1,14 +1,14 @@
-# Plan: `stepwise`, reescritura en Rust de pyBashResume (spec, tareas y aprendizaje)
+# Plan: `bash-resume`, reescritura en Rust de pyBashResume (spec, tareas y aprendizaje)
 
 ## Contexto
 pyBashResume (~700 líneas Python: `pyBashResume.py`, `ui_menu.py`, `custom_parser.py`, `custom_logging.py`)
-ejecuta ficheros de pasos en orden alfabético. Cada línea es un proceso de shell independiente (`sh -c` en Python, `bash -euo pipefail` en stepwise), con marcas
+ejecuta ficheros de pasos en orden alfabético. Cada línea es un proceso de shell independiente (`sh -c` en Python, `bash -euo pipefail` en bash-resume), con marcas
 `#>` (log), `#.` (stop) y `#` (comentario). Guarda el estado en `state.json`, permite reanudar con un menú
 curses y lanza `onerror` cuando algo falla. Es un "runbook ejecutable con checkpoints": cubre lo que bash
 no sabe hacer (reanudar).
 
 Hay dos objetivos a la vez:
-1. Rehacer **el mismo programa** en Rust como proyecto nuevo, **`stepwise`**, con pocas dependencias, código simple y el menú mejorado con ratatui.
+1. Rehacer **el mismo programa** en Rust como proyecto nuevo, **`bash-resume`**, con pocas dependencias, código simple y el menú mejorado con ratatui.
 2. **Aprender Rust y un buen flujo de desarrollo con IA**: spec → tareas con estado → implementación paso a paso, con explicación de cada concepto.
 
 **Modo de trabajo:** Claude escribe el código de cada tarea en pasos pequeños y explica los conceptos de Rust que aparecen (con referencias al Rust Book). Javier pregunta, prueba y modifica. Se hace una tarea por iteración.
@@ -28,7 +28,7 @@ No se toca la carpeta actual (`/home/javier/dev/cmnt-forks/pyBashResume`): es el
 ## Decisiones (→ `docs/decisions.md`)
 - ~~**D1 – PTY con `rustix` + `signal-hook`.**~~ Sustituida por D9.
 - **D2 – `clap` (derive) para la CLI.**
-- **D3 – Directorio home** (`state.json`, `migration.log`, `onerror`). Se resuelve en este orden: `--home DIR` → variable `STEPWISE_HOME` → pregunta interactiva validada. No se guarda en el estado.
+- **D3 – Directorio home** (`state.json`, `migration.log`, `onerror`). Se resuelve en este orden: `--home DIR` → variable `BASH_RESUME_HOME` → pregunta interactiva validada. No se guarda en el estado.
 - **D4 – `state.json` con el mismo formato que Python**, para poder alternar entre las dos versiones.
 - **D5 – Menú ratatui en una sola pantalla** con dos paneles y la confirmación integrada.
 - **D6 – Convenciones:** identificadores en inglés; comentarios, docs y mensajes en español.
@@ -41,9 +41,9 @@ No se toca la carpeta actual (`/home/javier/dev/cmnt-forks/pyBashResume`): es el
 `serde` (`derive`) + `serde_json`, `chrono` (`default-features=false`, `clock`).
 Los tests usan `std::env::temp_dir()`.
 
-## Estructura del repo `stepwise/`
+## Estructura del repo `bash-resume/`
 ```
-stepwise/
+bash-resume/
 ├── AGENTS.md          # Para la IA: flujo spec→tareas, modo enseñanza, convenciones, "empieza leyendo docs/tasks.md"
 ├── README.md          # Uso, compilación y diferencias con pyBashResume
 ├── Cargo.toml  .gitignore

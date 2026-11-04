@@ -1,4 +1,4 @@
-# AGENTS.md — stepwise
+# AGENTS.md — bash-resume
 
 Ejecutor de pasos de shell **reanudable**, reescrito en Rust a partir de `pyBashResume/` (el original en Python,
 solo de consulta e ignorado por git). Este proyecto es también un **proyecto de aprendizaje de Rust**.

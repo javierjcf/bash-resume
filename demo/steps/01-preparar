@@ -1,5 +1,5 @@
 #> PREPARANDO ENTORNO DE PRUEBA
-echo "hola desde stepwise"
+echo "hola desde bash-resume"
 ls --color=always
 
 # Cada línea es un proceso nuevo: este cd no afecta a la siguiente

@@ -1,6 +1,6 @@
 # Changelog
 
-Cambios de cada versión de stepwise. Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/);
+Cambios de cada versión de bash-resume. Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/);
 las versiones siguen [SemVer](https://semver.org/lang/es/).
 
 ## [Unreleased]
@@ -20,7 +20,7 @@ misma funcionalidad y un único binario sin dependencias.
   resaltado. Elegir una línea ya la ejecuta.
 - **Fallos**: se guarda la línea que falló, se ejecuta `onerror` (por ejemplo, un aviso por Telegram) y se sale con
   código 1. Al reanudar se repite esa línea.
-- **Ctrl+C** durante un comando lo detiene a él, no a stepwise: queda registrado en el log y se trata como un fallo.
+- **Ctrl+C** durante un comando lo detiene a él, no a bash-resume: queda registrado en el log y se trata como un fallo.
 - **Log** en `migration.log` y en pantalla, con el fichero de pasos en curso y la duración de cada comando.
 - **Instalación con una línea** (`curl … | sh`): descarga la release, comprueba el checksum y deja el binario
   estático en `~/.local/bin` (o donde se indique).
@@ -29,9 +29,9 @@ misma funcionalidad y un único binario sin dependencias.
 
 ### Diferencias con pyBashResume
 
-- **Una carpeta por proyecto** (`-H/--home` o `STEPWISE_HOME`) para `state.json`, `migration.log` y `onerror`,
+- **Una carpeta por proyecto** (`-H/--home` o `BASH_RESUME_HOME`) para `state.json`, `migration.log` y `onerror`,
   en lugar de guardarlos junto al script.
-- **Argumentos más cortos**: `stepwise [WORKDIR] [-s|--steps DIR] [-H|--home DIR]` (antes `--steps-path`).
+- **Argumentos más cortos**: `bash-resume [WORKDIR] [-s|--steps DIR] [-H|--home DIR]` (antes `--steps-path`).
   Un argumento antiguo muestra una sugerencia.
 - **Los comandos se ejecutan con `bash -euo pipefail`** en vez de `sh -c`: misma sintaxis en todas las distribuciones,
   las tuberías fallan si falla cualquier parte y una variable sin definir es un error.
@@ -48,5 +48,5 @@ misma funcionalidad y un único binario sin dependencias.
 - Se mantienen a propósito dos comportamientos del original: al reanudar sobre una parada `#.` se vuelve a parar,
   y al terminar todos los pasos el estado queda en el último comando.
 
-[Unreleased]: https://github.com/javierjcf/stepwise/compare/v0.1.0...HEAD
-[0.1.0]: https://github.com/javierjcf/stepwise/releases/tag/v0.1.0
+[Unreleased]: https://github.com/javierjcf/bash-resume/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/javierjcf/bash-resume/releases/tag/v0.1.0

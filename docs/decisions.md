@@ -26,14 +26,14 @@ El aislamiento del hijo se hace con `std::process::Command::process_group(0)`, s
 
 **Contexto.** Hay pocos argumentos, pero queremos `--help`, validación y buenos mensajes de error.
 **Decisión.** Usar `clap` con los features `derive` y `env`: es estable y estándar de facto. `env` resuelve
-`--home` → `STEPWISE_HOME` sin código propio. Nombres: `WORKDIR`, `-s/--steps` y `-H/--home` (más cortos que en Python).
+`--home` → `BASH_RESUME_HOME` sin código propio. Nombres: `WORKDIR`, `-s/--steps` y `-H/--home` (más cortos que en Python).
 **Alternativas.** Parsear `std::env::args` a mano, que da menos código de dependencias pero más código propio y peor UX.
 
-## D3 — Directorio home obligatorio (`--home` → `STEPWISE_HOME` → pregunta)
+## D3 — Directorio home obligatorio (`--home` → `BASH_RESUME_HOME` → pregunta)
 
 **Contexto.** En Python, `state.json`, `migration.log` y `onerror` vivían junto al script. Un binario
 instalado (por ejemplo en `~/.cargo/bin`) no es un buen sitio para eso.
-**Decisión.** Resolverlo en este orden: `--home DIR` → variable `STEPWISE_HOME` → pregunta interactiva,
+**Decisión.** Resolverlo en este orden: `--home DIR` → variable `BASH_RESUME_HOME` → pregunta interactiva,
 igual que el resto de rutas. No se guarda en `state.json`, porque el estado vive dentro de home.
 **Alternativas.** Directorio del ejecutable (mal sitio si está instalado); directorio actual (implícito y fácil de equivocarse).
 
@@ -67,8 +67,8 @@ subcarpetas. Tests unitarios en cada módulo y de integración en `tests/`. Deta
 ## D8 — Directorio de trabajo por comando, sin `chdir`
 
 **Contexto.** Python hace `os.chdir(execution_path)`, que cambia el directorio de todo el proceso (estado global).
-**Decisión.** `execute(cmd, workdir, log)` lanza cada comando con `Command::current_dir(workdir)`. El proceso de stepwise no cambia de directorio.
-**Motivo.** El comando ve exactamente lo mismo, pero las rutas relativas de stepwise (`--home`, `--steps`) siguen funcionando y los tests no dependen del directorio actual (que es compartido entre hilos).
+**Decisión.** `execute(cmd, workdir, log)` lanza cada comando con `Command::current_dir(workdir)`. El proceso de bash-resume no cambia de directorio.
+**Motivo.** El comando ve exactamente lo mismo, pero las rutas relativas de bash-resume (`--home`, `--steps`) siguen funcionando y los tests no dependen del directorio actual (que es compartido entre hilos).
 **Alternativas.** `std::env::set_current_dir` (global, como en Python).
 
 ## D9 — Sin PTY ni heurística de Odoo: un 255 es un error
@@ -107,7 +107,7 @@ y fallar en el servidor. Además, con `sh` el código de una tubería es el del 
 **Decisión.** `bash -e -u -o pipefail -c "<línea>"`: el mismo comportamiento en todas partes, como si se
 escribiera a mano en una terminal con el "modo estricto" de bash. `-e` para dentro de la línea al primer
 fallo, `-u` convierte las variables sin definir en error y `pipefail` hace fallar las tuberías rotas.
-**Consecuencias.** Requiere bash en la máquina donde corre stepwise (no en los contenedores: docker
+**Consecuencias.** Requiere bash en la máquina donde corre bash-resume (no en los contenedores: docker
 ejecuta dentro lo suyo). Pasos que usaran variables sin definir o tuberías con fallos "tolerados" ahora
 fallan: es intencionado; se aceptan explícitamente con `${VAR:-}` o `|| true`.
 **Alternativas.** `sh` (paridad con Python); shell configurable (`--shell` o `#!` por fichero): más

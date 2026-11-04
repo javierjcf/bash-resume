@@ -16,7 +16,7 @@ pub struct Args {
     pub steps: Option<PathBuf>,
 
     /// Directorio con state.json, migration.log y onerror
-    #[arg(short = 'H', long, value_name = "DIR", env = "STEPWISE_HOME")]
+    #[arg(short = 'H', long, value_name = "DIR", env = "BASH_RESUME_HOME")]
     pub home: Option<PathBuf>,
 }
 
@@ -32,15 +32,15 @@ mod tests {
 
     #[test]
     fn no_args_leaves_paths_unset() {
-        let args = Args::try_parse_from(["stepwise"]).unwrap();
+        let args = Args::try_parse_from(["bash-resume"]).unwrap();
         assert_eq!(args.workdir, None);
         assert_eq!(args.steps, None);
-        // `home` no se comprueba: depende de si STEPWISE_HOME está definida en el entorno.
+        // `home` no se comprueba: depende de si BASH_RESUME_HOME está definida en el entorno.
     }
 
     #[test]
     fn parses_short_flags() {
-        let args = Args::try_parse_from(["stepwise", "/w", "-s", "/s", "-H", "/h"]).unwrap();
+        let args = Args::try_parse_from(["bash-resume", "/w", "-s", "/s", "-H", "/h"]).unwrap();
         assert_eq!(args.workdir, Some(PathBuf::from("/w")));
         assert_eq!(args.steps, Some(PathBuf::from("/s")));
         assert_eq!(args.home, Some(PathBuf::from("/h")));
@@ -48,13 +48,13 @@ mod tests {
 
     #[test]
     fn parses_long_flags() {
-        let args = Args::try_parse_from(["stepwise", "--steps", "/s", "--home", "/h"]).unwrap();
+        let args = Args::try_parse_from(["bash-resume", "--steps", "/s", "--home", "/h"]).unwrap();
         assert_eq!(args.steps, Some(PathBuf::from("/s")));
         assert_eq!(args.home, Some(PathBuf::from("/h")));
     }
 
     #[test]
     fn rejects_unknown_flag() {
-        assert!(Args::try_parse_from(["stepwise", "--steps-path", "/s"]).is_err());
+        assert!(Args::try_parse_from(["bash-resume", "--steps-path", "/s"]).is_err());
     }
 }

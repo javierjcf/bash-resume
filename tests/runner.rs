@@ -6,9 +6,9 @@ use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
 
-use stepwise::log::Logger;
-use stepwise::runner::{Mode, Outcome, run_steps};
-use stepwise::state::State;
+use bash_resume::log::Logger;
+use bash_resume::runner::{Mode, Outcome, run_steps};
+use bash_resume::state::State;
 
 /// Proyecto de prueba en un directorio temporal: `steps/`, `state.json`, `migration.log` y `onerror`.
 struct Project {
@@ -18,7 +18,8 @@ struct Project {
 impl Project {
     /// Crea el proyecto con los ficheros de pasos `(nombre, contenido)`.
     fn new(name: &str, steps: &[(&str, &str)]) -> io::Result<Self> {
-        let dir = std::env::temp_dir().join(format!("stepwise-it-{name}-{}", std::process::id()));
+        let dir =
+            std::env::temp_dir().join(format!("bash-resume-it-{name}-{}", std::process::id()));
         let _ = fs::remove_dir_all(&dir);
         fs::create_dir_all(dir.join("steps"))?;
         for (file, content) in steps {

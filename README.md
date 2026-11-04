@@ -1,4 +1,4 @@
-# stepwise
+# bash-resume
 
 Ejecuta comandos de shell desde **ficheros de pasos**, línea a línea, recordando por dónde va.
 Si algo falla, puedes **reanudar** desde ese punto o elegir cualquier otro en un menú interactivo.
@@ -14,30 +14,30 @@ Cambios por versión en [CHANGELOG.md](CHANGELOG.md).
 Binario estático para Linux x86_64 (funciona en cualquier distribución). Necesita `bash` para ejecutar los pasos.
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/javierjcf/stepwise/main/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/javierjcf/bash-resume/main/install.sh | sh
 ```
 
-Descarga la última release, comprueba su checksum y deja `stepwise` en `~/.local/bin` (sin `sudo`).
+Descarga la última release, comprueba su checksum y deja `bash-resume` en `~/.local/bin` (sin `sudo`).
 Si esa carpeta no está en tu `PATH`, el script te dice cómo añadirla. Opciones:
 
 ```bash
 # Para todos los usuarios de la máquina, en /usr/local/bin:
-curl -fsSL https://raw.githubusercontent.com/javierjcf/stepwise/main/install.sh | sudo env STEPWISE_INSTALL_DIR=/usr/local/bin sh
+curl -fsSL https://raw.githubusercontent.com/javierjcf/bash-resume/main/install.sh | sudo env BASH_RESUME_INSTALL_DIR=/usr/local/bin sh
 
 # Una versión concreta:
-curl -fsSL https://raw.githubusercontent.com/javierjcf/stepwise/main/install.sh | STEPWISE_VERSION=v0.1.0 sh
+curl -fsSL https://raw.githubusercontent.com/javierjcf/bash-resume/main/install.sh | BASH_RESUME_VERSION=v0.1.0 sh
 ```
 
 Para actualizar, se vuelve a ejecutar el mismo comando. Para desinstalar, basta con borrar el binario
-(`rm ~/.local/bin/stepwise`).
+(`rm ~/.local/bin/bash-resume`).
 
-**A mano**, sin script: descarga el `.tar.gz` de la [última release](https://github.com/javierjcf/stepwise/releases/latest),
+**A mano**, sin script: descarga el `.tar.gz` de la [última release](https://github.com/javierjcf/bash-resume/releases/latest),
 y luego:
 
 ```bash
-sha256sum -c stepwise-v0.1.0-x86_64-unknown-linux-musl.tar.gz.sha256    # opcional: comprobar la descarga
-tar xzf stepwise-v0.1.0-x86_64-unknown-linux-musl.tar.gz
-install -m 755 stepwise-v0.1.0-x86_64-unknown-linux-musl/stepwise ~/.local/bin/
+sha256sum -c bash-resume-v0.1.0-x86_64-unknown-linux-musl.tar.gz.sha256    # opcional: comprobar la descarga
+tar xzf bash-resume-v0.1.0-x86_64-unknown-linux-musl.tar.gz
+install -m 755 bash-resume-v0.1.0-x86_64-unknown-linux-musl/bash-resume ~/.local/bin/
 ```
 
 ## Inicio rápido
@@ -45,26 +45,26 @@ install -m 755 stepwise-v0.1.0-x86_64-unknown-linux-musl/stepwise ~/.local/bin/
 ```bash
 mkdir -p ~/migr/steps                              # home del proyecto + sus pasos
 echo 'echo hola' > ~/migr/steps/01-saludo
-stepwise /opt/odoo/doodba -s ~/migr/steps -H ~/migr
+bash-resume /opt/odoo/doodba -s ~/migr/steps -H ~/migr
 ```
 
 1. La primera vez no hay estado: responde **`m`** para abrir el menú, elige una línea y pulsa **`Enter`**.
-2. Las siguientes veces basta con `stepwise -H ~/migr`: recuerda el directorio de trabajo y los pasos,
+2. Las siguientes veces basta con `bash-resume -H ~/migr`: recuerda el directorio de trabajo y los pasos,
    muestra el punto pendiente y pregunta qué hacer.
 
 ## Uso
 
 ```bash
-stepwise [WORKDIR] [-s|--steps DIR] [-H|--home DIR]
+bash-resume [WORKDIR] [-s|--steps DIR] [-H|--home DIR]
 ```
 
 | Argumento | Qué es | Si no se indica |
 |---|---|---|
 | `WORKDIR` | Directorio donde se ejecutan los comandos (por ejemplo, el doodba) | El guardado en el estado, o se pregunta |
 | `-s, --steps` | Carpeta con los ficheros de pasos | La guardada, `./migration-steps`, o se pregunta |
-| `-H, --home` | Carpeta del proyecto: `state.json`, `migration.log` y `onerror` | `$STEPWISE_HOME`, o se pregunta |
+| `-H, --home` | Carpeta del proyecto: `state.json`, `migration.log` y `onerror` | `$BASH_RESUME_HOME`, o se pregunta |
 
-Truco: `export STEPWISE_HOME=~/migr` y basta con `stepwise`.
+Truco: `export BASH_RESUME_HOME=~/migr` y basta con `bash-resume`.
 
 ### La pregunta inicial
 
@@ -125,7 +125,7 @@ docker compose run --rm odoo --update all --stop-after-init
 | Situación | Resultado |
 |---|---|
 | **Falla un comando** | Se guarda el estado en esa línea, se ejecuta `onerror` y se sale con código 1. Al reanudar, se repite esa línea |
-| **Pulsas Ctrl+C** durante un comando | Se detiene el comando (no stepwise), se registra en el log y se trata como un fallo |
+| **Pulsas Ctrl+C** durante un comando | Se detiene el comando (no bash-resume), se registra en el log y se trata como un fallo |
 | **Llega a una línea `#.`** | Se para con código 0. Al reanudar se vuelve a parar ahí: para seguir, elige la línea siguiente en el menú |
 | **Termina todos los pasos** | `Procesado todos los ficheros disponibles.` y código 0 |
 
@@ -135,15 +135,15 @@ Ficheros del home (`-H`):
 - `onerror` (opcional): comandos que se ejecutan si algo falla, por ejemplo `telegram-send "❌ Error"`.
   Las líneas vacías y las que empiezan por `#` se ignoran.
 
-Útil en scripts: `stepwise -H ~/migr && telegram-send "✅ Migración terminada"`.
+Útil en scripts: `bash-resume -H ~/migr && telegram-send "✅ Migración terminada"`.
 
 ## Compilar desde el código
 
 Necesitas Rust (<https://rustup.rs>).
 
 ```bash
-cargo build --release              # → target/release/stepwise
-cargo install --path .             # compila e instala en ~/.cargo/bin/stepwise
+cargo build --release              # → target/release/bash-resume
+cargo install --path .             # compila e instala en ~/.cargo/bin/bash-resume
 ```
 
 Ese binario se enlaza con la glibc del sistema donde se compila, así que puede no funcionar en
@@ -152,12 +152,12 @@ servidores con una glibc más antigua (`GLIBC_2.xx not found`). El de las releas
 ```bash
 rustup target add x86_64-unknown-linux-musl
 cargo build --release --locked --target x86_64-unknown-linux-musl
-# → target/x86_64-unknown-linux-musl/release/stepwise
+# → target/x86_64-unknown-linux-musl/release/bash-resume
 ```
 
 ## Diferencias con pyBashResume
 
-- `-H/--home` (o `STEPWISE_HOME`): `state.json`, el log y `onerror` viven en una carpeta por proyecto, no junto al script.
+- `-H/--home` (o `BASH_RESUME_HOME`): `state.json`, el log y `onerror` viven en una carpeta por proyecto, no junto al script.
 - Argumentos más cortos: `WORKDIR`, `-s/--steps` (antes `--steps-path`).
 - Menú en una sola pantalla; elegir una línea ya confirma la ejecución.
 - Los comandos se ejecutan con `bash -euo pipefail` en vez de `sh -c` ([D10](docs/decisions.md)).

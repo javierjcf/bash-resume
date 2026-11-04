@@ -7,8 +7,8 @@ Para jugar y aprender. Todos se lanzan desde la raíz del proyecto.
 | Comando | Qué hace |
 |---|---|
 | `cargo check` | Comprueba tipos sin generar binario. Es lo más rápido |
-| `cargo build` | Compila en debug → `target/debug/stepwise` |
-| `cargo build --release` | Compila optimizado → `target/release/stepwise` |
+| `cargo build` | Compila en debug → `target/debug/bash-resume` |
+| `cargo build --release` | Compila optimizado → `target/release/bash-resume` |
 | `cargo run` | `build` + ejecutar |
 | `cargo run -- --help` | Lo que va tras `--` son argumentos para **tu** programa |
 | `cargo clean` | Borra `target/` |
@@ -68,7 +68,7 @@ Para jugar y aprender. Todos se lanzan desde la raíz del proyecto.
 ## Probar a mano
 
 Todo usa `demo/`: pasos de ejemplo en `demo/steps/` y `demo/onerror`. `state.json` y `migration.log`
-se crean ahí y git los ignora. `export STEPWISE_HOME=demo` ahorra escribir `-H demo`.
+se crean ahí y git los ignora. `export BASH_RESUME_HOME=demo` ahorra escribir `-H demo`.
 
 **Primera vez y reanudar**
 ```bash
@@ -114,7 +114,7 @@ cargo run -- -H demo 2>&1 | less -R    # sin terminal → el log sale sin colore
 | `cmd 2>&1 \| less -R` | Juntar stderr con stdout y paginar con colores |
 | `script -qc "cmd" /dev/null \| /usr/bin/cat -v` | Ejecutar con terminal falsa y ver los códigos ANSI |
 | `/usr/bin/cat` | El `cat` real (en esta máquina `cat` es un alias de `bat`) |
-| `./target/debug/stepwise --help` | El binario ya compilado, sin pasar por cargo |
+| `./target/debug/bash-resume --help` | El binario ya compilado, sin pasar por cargo |
 
 ## Experimentos rápidos
 

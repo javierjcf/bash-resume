@@ -35,7 +35,7 @@ Rust Book: <https://doc.rust-lang.org/book/> (abreviado **RB**, por ejemplo RB 7
 
 **Librería + binario** (RB 12.3, 7.2)
 - `lib.rs` declara los módulos con `pub mod parser;`, y el compilador busca entonces `src/parser.rs`. Los ficheros no se cargan solos.
-- Dentro de la librería se importa con `use crate::…`; desde `main.rs` con `use stepwise::…`, porque el binario ve la librería como un crate externo.
+- Dentro de la librería se importa con `use crate::…`; desde `main.rs` con `use bash_resume::…`, porque el binario ve la librería como un crate externo.
 
 **`enum`** (RB 6.1)
 - Conjunto cerrado de valores. Frente a usar strings (`"cmd"`), una errata no compila.
@@ -112,7 +112,7 @@ Rust Book: <https://doc.rust-lang.org/book/> (abreviado **RB**, por ejemplo RB 7
 - `///` encima del struct y de cada campo **se convierte en el texto de `--help`**. La documentación y la ayuda son lo mismo.
 - `#[command(version)]` toma la versión de `Cargo.toml`. `#[arg(short, long)]` deriva `-s`/`--steps` del nombre del campo; `short = 'H'` la fuerza (porque `-h` es la ayuda).
 - Un campo sin `#[arg]` es **posicional** (`WORKDIR`); `value_name` cambia el `<DIR>` que se muestra.
-- `env = "STEPWISE_HOME"` (feature `env`): si falta el flag, clap lee la variable.
+- `env = "BASH_RESUME_HOME"` (feature `env`): si falta el flag, clap lee la variable.
 
 **El tipo define el comportamiento**
 - `Option<PathBuf>` → argumento **opcional**. Con `PathBuf` sin `Option`, clap lo haría obligatorio. Con `bool`, sería un flag sin valor.
@@ -132,7 +132,7 @@ Rust Book: <https://doc.rust-lang.org/book/> (abreviado **RB**, por ejemplo RB 7
 - `{args:#?}` = Debug "bonito", con saltos de línea.
 
 **Variables de entorno en tests**
-- En la edición 2024, `std::env::set_var` es `unsafe`, porque modificar el entorno con hilos en paralelo es una carrera de datos. Por eso no hay test de `STEPWISE_HOME`: se prueba a mano.
+- En la edición 2024, `std::env::set_var` es `unsafe`, porque modificar el entorno con hilos en paralelo es una carrera de datos. Por eso no hay test de `BASH_RESUME_HOME`: se prueba a mano.
 
 **Broken pipe**
 - `cargo run | head` hace que `println!` entre en pánico al cerrarse la tubería (`Broken pipe`). Es el comportamiento estándar de Rust (en Python sería un `BrokenPipeError`). No afecta al uso normal.
@@ -284,7 +284,7 @@ Rust Book: <https://doc.rust-lang.org/book/> (abreviado **RB**, por ejemplo RB 7
 - Mejor que `bool` o que imprimir dentro: quien llama hace `match` y decide. `Mode::Once` se lee mejor que un `true` suelto en la llamada.
 
 **Tests de integración** (RB 11.3)
-- Cada fichero de `tests/` es un **crate aparte** que solo ve lo `pub` (`use stepwise::...`). No ven `#[cfg(test)]` de la librería: por eso tienen su propio helper.
+- Cada fichero de `tests/` es un **crate aparte** que solo ve lo `pub` (`use bash_resume::...`). No ven `#[cfg(test)]` de la librería: por eso tienen su propio helper.
 - `struct Project` con `impl Drop`: al salir del test (aunque falle con panic), `drop` borra el directorio temporal. Es RAII hecho a mano: el `Drop` de Rust es el `__exit__` de un `with`, pero automático.
 - Comandos que escriben en `out` (`echo a >> out`) permiten comprobar qué se ejecutó y en qué orden, sin capturar la salida.
 
@@ -304,7 +304,7 @@ Rust Book: <https://doc.rust-lang.org/book/> (abreviado **RB**, por ejemplo RB 7
 - Lección de proceso: **antes de implementar algo complejo, comprobar si hace falta** (código fuente de la dependencia + historial de git del original). Se han ahorrado una tarea, una dependencia y unas 80 líneas.
 
 **Ctrl+C sin hacer nada (comprobado con un Ctrl+C real a través de un PTY de Python)**
-- La terminal envía SIGINT a todo el grupo en primer plano: el comando y stepwise mueren a la vez.
+- La terminal envía SIGINT a todo el grupo en primer plano: el comando y bash-resume mueren a la vez.
 - El estado ya queda bien (apunta a la línea interrumpida, porque se guarda el *siguiente* comando tras cada éxito), pero no queda registro en el log ni se ejecuta `onerror` → eso es lo que hará T10.
 - Trampa al probarlo: un proceso lanzado con `&` desde un shell no interactivo **ignora SIGINT**, así que `kill -INT` no simula bien un Ctrl+C. Y `pkill -f texto` también mata a tu propio shell si su línea de comandos contiene ese texto.
 
@@ -344,7 +344,7 @@ Rust Book: <https://doc.rust-lang.org/book/> (abreviado **RB**, por ejemplo RB 7
 ## T10 — Ctrl+C durante un comando
 
 **Señales Unix**
-- Ctrl+C hace que la terminal envíe **SIGINT** a todos los procesos del primer plano (el comando y stepwise). La acción por defecto es terminar.
+- Ctrl+C hace que la terminal envíe **SIGINT** a todos los procesos del primer plano (el comando y bash-resume). La acción por defecto es terminar.
 - Un *handler* (manejador) cambia esa acción. El sistema lo ejecuta **interrumpiendo el programa en cualquier instrucción**, y luego el programa sigue donde estaba.
 - Python hace lo mismo por debajo: CPython instala un handler en C que solo marca un flag, y luego el intérprete lanza `KeyboardInterrupt`.
 

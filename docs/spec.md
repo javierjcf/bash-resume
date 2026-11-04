@@ -1,4 +1,4 @@
-# Especificación funcional — stepwise
+# Especificación funcional — bash-resume
 
 Qué hace el programa, visto desde fuera. No describe cómo está hecho en Rust: eso va en
 [decisions.md](decisions.md) y en el código. La referencia es la versión Python en `pyBashResume/`.
@@ -6,7 +6,7 @@ Las diferencias deliberadas están marcadas con **[cambio]**.
 
 ## 1. Concepto
 
-`stepwise` ejecuta, en orden, las líneas de una serie de ficheros de pasos. Cada línea es un
+`bash-resume` ejecuta, en orden, las líneas de una serie de ficheros de pasos. Cada línea es un
 comando de shell independiente. Recuerda por dónde va y permite reanudar desde el último fallo,
 o desde cualquier punto elegido en un menú interactivo.
 
@@ -14,7 +14,7 @@ o desde cualquier punto elegido en un menú interactivo.
 
 | Nombre | Contenido | Cómo se resuelve |
 |---|---|---|
-| **home** | `state.json`, `migration.log`, `onerror` | `-H/--home DIR` → env `STEPWISE_HOME` → pregunta interactiva. No se guarda en el estado. **[cambio]** En Python era el directorio del script. |
+| **home** | `state.json`, `migration.log`, `onerror` | `-H/--home DIR` → env `BASH_RESUME_HOME` → pregunta interactiva. No se guarda en el estado. **[cambio]** En Python era el directorio del script. |
 | **workdir** (`execution_path` en el estado) | Directorio donde se ejecutan los comandos | argumento posicional `WORKDIR` → `state.json` → pregunta interactiva |
 | **steps** (`steps_path` en el estado) | Carpeta con los ficheros de pasos | `-s/--steps` → `state.json` → `migration-steps` → pregunta interactiva |
 
@@ -55,7 +55,7 @@ o desde cualquier punto elegido en un menú interactivo.
 - El comando **hereda la terminal**: su salida aparece en tiempo real con sus colores y barras de progreso, y puede leer del teclado (prompts de `sudo`, `[y/N]`…). **[cambio]** En Python se usaba un PTY y los prompts no funcionaban.
 - **¿Es un error?** `exit 0` → éxito; cualquier otro código (o morir por una señal) → fallo.
   **[cambio]** Se elimina la heurística de Python para `exit 255` + `--stop-after-init`: en Odoo un 255 es siempre un error real (D9). Para aceptar un código en un paso concreto: `cmd || true`.
-- **Ctrl+C** durante un comando: la terminal se lo envía al comando, que se detiene; stepwise **no** se detiene, registra `⛔ Ctrl+C detectado…` y lo trata como un fallo (estado en esa línea + `onerror`, código 1), igual que Python. Cuenta como fallo aunque el comando termine con 0 al recibirlo.
+- **Ctrl+C** durante un comando: la terminal se lo envía al comando, que se detiene; bash-resume **no** se detiene, registra `⛔ Ctrl+C detectado…` y lo trata como un fallo (estado en esa línea + `onerror`, código 1), igual que Python. Cuenta como fallo aunque el comando termine con 0 al recibirlo.
 - Al terminar se registra en el log `Tiempo de ejecución: h:m:s` (sin ceros a la izquierda).
 
 ## 5. Recorrido de los pasos (`run_steps`)
@@ -148,13 +148,13 @@ En Python eran dos menús curses encadenados más una pregunta de confirmación.
 ## 9. CLI
 
 ```
-stepwise [WORKDIR] [-s|--steps DIR] [-H|--home DIR]
+bash-resume [WORKDIR] [-s|--steps DIR] [-H|--home DIR]
 ```
 
 - **[cambio]** Nombres más cortos que en Python (`execution_path` → `WORKDIR`, `--steps-path` → `--steps`). Las claves de `state.json` no cambian (D4).
 - `--help`/`-h` y `--version`/`-V` los genera clap. Un argumento desconocido muestra un error con una sugerencia y sale con código 2.
 
-- Si se pulsa Ctrl+C fuera de un comando (en las preguntas), stepwise termina sin ejecutar nada. **[cambio]** Termina por la señal (el shell muestra código 130), sin el mensaje `❌ Interrumpido por el usuario.` de Python.
+- Si se pulsa Ctrl+C fuera de un comando (en las preguntas), bash-resume termina sin ejecutar nada. **[cambio]** Termina por la señal (el shell muestra código 130), sin el mensaje `❌ Interrumpido por el usuario.` de Python.
 
 ## Fuera de alcance y mejoras posibles
 

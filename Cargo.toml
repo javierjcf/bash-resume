@@ -1,10 +1,10 @@
 [package]
-name = "stepwise"
+name = "bash-resume"
 version = "0.1.0"
 edition = "2024"
 description = "Ejecuta ficheros de pasos de shell línea a línea, recordando por dónde va para poder reanudar"
 license = "GPL-3.0-or-later"
-repository = "https://github.com/javierjcf/stepwise"
+repository = "https://github.com/javierjcf/bash-resume"
 
 [dependencies]
 chrono = { version = "0.4.45", default-features = false, features = ["clock"] }

@@ -1,19 +1,19 @@
 #!/bin/sh
-# Instala stepwise desde las releases de GitHub.
+# Instala bash-resume desde las releases de GitHub.
 #
-#   curl -fsSL https://raw.githubusercontent.com/javierjcf/stepwise/main/install.sh | sh
+#   curl -fsSL https://raw.githubusercontent.com/javierjcf/bash-resume/main/install.sh | sh
 #
 # Variables opcionales:
-#   STEPWISE_VERSION      versión a instalar, por ejemplo v0.1.0 (por defecto, la última release)
-#   STEPWISE_INSTALL_DIR  carpeta de destino (por defecto, ~/.local/bin; para todos los usuarios,
-#                         /usr/local/bin con: ... | sudo env STEPWISE_INSTALL_DIR=/usr/local/bin sh)
+#   BASH_RESUME_VERSION      versión a instalar, por ejemplo v0.1.0 (por defecto, la última release)
+#   BASH_RESUME_INSTALL_DIR  carpeta de destino (por defecto, ~/.local/bin; para todos los usuarios,
+#                         /usr/local/bin con: ... | sudo env BASH_RESUME_INSTALL_DIR=/usr/local/bin sh)
 #
 # Escrito en sh POSIX (no bash): con `curl | sh` lo ejecuta /bin/sh, que en Debian/Ubuntu es dash.
 set -eu
 
-REPO="javierjcf/stepwise"
+REPO="javierjcf/bash-resume"
 TARGET="x86_64-unknown-linux-musl"
-INSTALL_DIR="${STEPWISE_INSTALL_DIR:-$HOME/.local/bin}"
+INSTALL_DIR="${BASH_RESUME_INSTALL_DIR:-$HOME/.local/bin}"
 
 fail() {
     echo "❌ $*" >&2
@@ -27,7 +27,7 @@ command -v curl >/dev/null || fail "hace falta curl"
 command -v tar >/dev/null || fail "hace falta tar"
 
 # Versión: la indicada o la última release (GitHub redirige /releases/latest a /releases/tag/vX.Y.Z).
-VERSION="${STEPWISE_VERSION:-}"
+VERSION="${BASH_RESUME_VERSION:-}"
 if [ -z "$VERSION" ]; then
     latest_url=$(curl -fsSLI -o /dev/null -w '%{url_effective}' "https://github.com/$REPO/releases/latest") ||
         fail "no se encontró ninguna release publicada en https://github.com/$REPO/releases"
@@ -38,14 +38,14 @@ case "$VERSION" in
     *) fail "no se encontró ninguna release publicada en https://github.com/$REPO/releases" ;;
 esac
 
-NAME="stepwise-$VERSION-$TARGET"
+NAME="bash-resume-$VERSION-$TARGET"
 URL="https://github.com/$REPO/releases/download/$VERSION/$NAME.tar.gz"
 
 # Descarga en una carpeta temporal que se borra al terminar, pase lo que pase.
 TMP=$(mktemp -d)
 trap 'rm -rf "$TMP"' EXIT
 
-echo "⬇️  Descargando stepwise $VERSION…"
+echo "⬇️  Descargando bash-resume $VERSION…"
 curl -fsSL -o "$TMP/$NAME.tar.gz" "$URL" || fail "no se pudo descargar $URL"
 
 # Comprobar el checksum, si se puede (la release publica el .sha256 junto al .tar.gz).
@@ -57,9 +57,9 @@ fi
 
 tar -xzf "$TMP/$NAME.tar.gz" -C "$TMP"
 mkdir -p "$INSTALL_DIR"
-install -m 755 "$TMP/$NAME/stepwise" "$INSTALL_DIR/stepwise"
+install -m 755 "$TMP/$NAME/bash-resume" "$INSTALL_DIR/bash-resume"
 
-echo "✅ Instalado: $INSTALL_DIR/stepwise ($("$INSTALL_DIR/stepwise" --version))"
+echo "✅ Instalado: $INSTALL_DIR/bash-resume ($("$INSTALL_DIR/bash-resume" --version))"
 
 # Avisar si la carpeta no está en el PATH.
 case ":$PATH:" in

@@ -1,4 +1,4 @@
-# Documentación de stepwise
+# Documentación de bash-resume
 
 | Documento | Para qué |
 |---|---|
@@ -8,7 +8,7 @@
 | [tasks.md](tasks.md) | **Qué se ha hecho**: tareas con estado y criterio de aceptación. |
 | [ideas.md](ideas.md) | **Qué se podría hacer**: valoración de la app y mejoras propuestas. |
 | [plan.md](plan.md) | El plan inicial de la reescritura, actualizado con las decisiones. |
-| [cheatsheet.md](cheatsheet.md) | Chuleta de comandos de cargo y rustup, y cómo probar stepwise a mano. |
+| [cheatsheet.md](cheatsheet.md) | Chuleta de comandos de cargo y rustup, y cómo probar bash-resume a mano. |
 | [learning.md](learning.md) | **Qué hemos aprendido**: diario de conceptos de Rust por tarea. |
 
 ## Flujo de trabajo

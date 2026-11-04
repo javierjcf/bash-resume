@@ -38,7 +38,7 @@ Cada tarea deja el proyecto **compilando y con los tests en verde**. Las referen
 - **Rust:** `Result`, operador `?`, `Path` y `PathBuf`, iteradores (`filter`, `map`, `collect`), `sort`.
 
 ### T3 — `cli` con clap (§9)
-- **Hace:** `struct Args { workdir: Option<PathBuf>, steps: Option<PathBuf>, home: Option<PathBuf> }`, con `home` leído también de `STEPWISE_HOME`.
+- **Hace:** `struct Args { workdir: Option<PathBuf>, steps: Option<PathBuf>, home: Option<PathBuf> }`, con `home` leído también de `BASH_RESUME_HOME`.
 - **Aceptación:** `cargo run -- --help` muestra nuestras descripciones en español (los textos propios de clap, como "Usage" u "Options", siguen en inglés).
 - **Rust:** macros `derive`, atributos, `Option`.
 
@@ -72,7 +72,7 @@ Cada tarea deja el proyecto **compilando y con los tests en verde**. Las referen
 - En Odoo, un `exit 255` con `--stop-after-init` siempre es un error real, así que la heurística no aporta nada y el PTY tampoco. Los comandos siguen heredando la terminal (colores y prompts funcionan).
 
 ### T10 — Ctrl+C durante un comando (§4)
-- **Hace:** dos manejadores de SIGINT registrados una sola vez (`OnceLock`): `flag::register_conditional_default` (termina stepwise solo si `terminate` es `true`) y `flag::register` (anota que llegó). `execute` pone `terminate = false` mientras dura el comando; el comando recibe el Ctrl+C de la terminal y se detiene. Al volver: log `⛔ Ctrl+C detectado…` y fallo normal (estado + `onerror`). No se quita el manejador, porque signal-hook no restaura el comportamiento por defecto al quitarlo.
+- **Hace:** dos manejadores de SIGINT registrados una sola vez (`OnceLock`): `flag::register_conditional_default` (termina bash-resume solo si `terminate` es `true`) y `flag::register` (anota que llegó). `execute` pone `terminate = false` mientras dura el comando; el comando recibe el Ctrl+C de la terminal y se detiene. Al volver: log `⛔ Ctrl+C detectado…` y fallo normal (estado + `onerror`). No se quita el manejador, porque signal-hook no restaura el comportamiento por defecto al quitarlo.
 - **Aceptación:** Ctrl+C durante `sleep 30` detiene el `sleep`, deja el estado en esa línea, registra la interrupción y ejecuta `onerror`; Ctrl+C en una pregunta sale sin ejecutar nada.
 - **Rust:** `Arc`, `AtomicBool` y `Ordering`, `OnceLock` y `static`, señales Unix.
 - **Verificación:** manual, con un Ctrl+C real (ver cheatsheet). Un test automático tendría que enviar señales al propio proceso de tests, que ejecuta tests en paralelo.

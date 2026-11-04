@@ -5,9 +5,9 @@ Cómo está organizado el código y por qué. El *qué* hace el programa está e
 ## Un package, dos crates
 
 ```
-Cargo.toml          → el *package* "stepwise"
-src/lib.rs          → crate LIBRERÍA "stepwise": toda la lógica
-src/main.rs         → crate BINARIO "stepwise": solo arranca (args → stepwise::run → código de salida)
+Cargo.toml          → el *package* "bash-resume"
+src/lib.rs          → crate LIBRERÍA "bash-resume": toda la lógica
+src/main.rs         → crate BINARIO "bash-resume": solo arranca (args → bash_resume::run → código de salida)
 ```
 
 Es el patrón recomendado en el Rust Book (RB 12.3, *Separation of Concerns for Binary Projects*):
@@ -66,7 +66,7 @@ use std::path::{Path, PathBuf};    // librería estándar
 use serde::Deserialize;            // crate externo (declarado en Cargo.toml)
 
 // En main.rs, la librería se ve como un crate externo más, con el nombre del package:
-use stepwise::cli::Args;
+use bash_resume::cli::Args;
 ```
 
 **Visibilidad**: todo es **privado por defecto**, y `pub` lo hace visible fuera del módulo. La regla es hacer

@@ -1,10 +1,10 @@
 use std::process::ExitCode;
 
+use bash_resume::cli::Args;
 use clap::Parser;
-use stepwise::cli::Args;
 
 fn main() -> ExitCode {
-    match stepwise::app::run(Args::parse()) {
+    match bash_resume::app::run(Args::parse()) {
         Ok(code) => code,
         Err(e) => {
             eprintln!("❌ Error: {e}");

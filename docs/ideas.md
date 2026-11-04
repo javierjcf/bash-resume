@@ -1,6 +1,6 @@
 # Ideas y mejoras propuestas
 
-Qué se podría añadir o mejorar para que stepwise cumpla aún mejor su objetivo: **ejecutar procesos
+Qué se podría añadir o mejorar para que bash-resume cumpla aún mejor su objetivo: **ejecutar procesos
 largos paso a paso (migraciones de Odoo), con la seguridad de poder parar, arreglar y reanudar**.
 Nada de esto está decidido: si se hace una, pasa a [tasks.md](tasks.md), con su decisión en
 [decisions.md](decisions.md) si cambia el comportamiento.
@@ -28,7 +28,7 @@ Nada de esto está decidido: si se hace una, pasa a [tasks.md](tasks.md), con su
 
 | Idea | Qué resuelve | Esfuerzo |
 |---|---|---|
-| **Relanzar sin preguntar: `-y/--yes` y `-o/--once`** | `-y` continúa desde el estado guardado sin preguntar; `-o` ejecuta un solo comando sin preguntar. Si el estado no es válido o falta una ruta, **error** (código 1) en vez de abrir el menú o preguntar: sin terminal no hay a quién preguntar. Tras arreglar un fallo basta con `stepwise -y`, y vale para ejecuciones desatendidas. Encaje: dos flags en `cli.rs`, un atajo en `app::run` antes de `choose_action` y `pick_dir` sin preguntar cuando hay flag. ~40 líneas y tests | Bajo |
+| **Relanzar sin preguntar: `-y/--yes` y `-o/--once`** | `-y` continúa desde el estado guardado sin preguntar; `-o` ejecuta un solo comando sin preguntar. Si el estado no es válido o falta una ruta, **error** (código 1) en vez de abrir el menú o preguntar: sin terminal no hay a quién preguntar. Tras arreglar un fallo basta con `bash-resume -y`, y vale para ejecuciones desatendidas. Encaje: dos flags en `cli.rs`, un atajo en `app::run` antes de `choose_action` y `pick_dir` sin preguntar cuando hay flag. ~40 líneas y tests | Bajo |
 | **Pantalla única: resumen + menú en la TUI** (ver detalle abajo) | Sustituye la pregunta de texto `Y/M/O/N` por la TUI abierta directamente en la línea guardada: se ve el contexto y se decide con una tecla | Bajo-medio |
 | **Tiempos por comando, por fichero y total** | Ya se registra `Tiempo de ejecución` de cada comando (`exec.rs`). Faltaría el tiempo de cada fichero al salir de él y el total de la ejecución al terminar, por el logger (pantalla y `migration.log`). Si termina con éxito el último fichero, un resumen con la tabla por fichero y el total. Encaje: `Instant` en `runner.rs` alrededor de cada fichero y de `run_steps`, reutilizando `format_duration`. **Limitación:** son tiempos de *esta* ejecución. Si hubo un fallo y se reanudó, el resumen no cubre lo anterior y no es representativo; es útil sobre todo con una migración ya ensayada que va de principio a fin. **Pendiente de decidir:** acumularlos entre reanudaciones (¿en `state.json`, o en un fichero aparte del home?), poniéndolos a cero al empezar desde el principio. Relacionada con *Historial de ejecución* y *Progreso* | Bajo (sin acumular) / Medio (acumulando) |
 | **`[C] Continuar tras la parada`** en la pregunta inicial cuando el estado está en una línea `#.` | Quita la rareza de la parada sin cambiar el comportamiento por defecto (no hace falta ir al menú) | Muy bajo |
@@ -44,7 +44,7 @@ Hoy hay dos interfaces para lo mismo (decidir desde qué línea ejecutar): la pr
 guardada.
 
 ```
-┌ stepwise ─────────────────────────────────────────────────────────────────┐
+┌ bash-resume ─────────────────────────────────────────────────────────────────┐
 │ Workdir: /opt/odoo/doodba-20     Pasos: ~/migr/steps     ● Estado válido    │
 ├ Ficheros ───────────┬ 02-migrar ────────────────────────────────────────────┤
 │   01-preparar       │  [001] #> MIGRANDO                                    │
@@ -100,16 +100,16 @@ guardada.
 
 | Idea | Comentario |
 |---|---|
-| `stepwise init DIR` | Crear el home con `steps/`, un `onerror` de ejemplo y un README de los pasos |
+| `bash-resume init DIR` | Crear el home con `steps/`, un `onerror` de ejemplo y un README de los pasos |
 | Timeout por paso (`#timeout 30m`) | Para pasos que se pueden colgar; habría que matar el grupo de procesos |
-| Pasos condicionales o reintentos automáticos (`#retry 3`) | Útil para pasos de red inestables, pero acerca stepwise a un sistema de tareas: valorar si compensa la complejidad |
-| Ejecución remota (`--ssh host`) | Hoy se puede hacer con `ssh host stepwise …`; integrarlo no aporta mucho |
+| Pasos condicionales o reintentos automáticos (`#retry 3`) | Útil para pasos de red inestables, pero acerca bash-resume a un sistema de tareas: valorar si compensa la complejidad |
+| Ejecución remota (`--ssh host`) | Hoy se puede hacer con `ssh host bash-resume …`; integrarlo no aporta mucho |
 
 ## Calidad del proyecto
 
 | Idea | Qué aporta |
 |---|---|
-| **Tests del binario completo** con `env!("CARGO_BIN_EXE_stepwise")` (sin dependencias) | Probar códigos de salida y preguntas por tubería de punta a punta, como en la verificación manual |
+| **Tests del binario completo** con `env!("CARGO_BIN_EXE_bash-resume")` (sin dependencias) | Probar códigos de salida y preguntas por tubería de punta a punta, como en la verificación manual |
 | **CI en GitHub Actions**: `fmt --check`, `clippy -D warnings`, `test` en cada push | Que nada se rompa sin darse cuenta |
 | **Releases con `cargo-dist`** (binario musl, `.tar.gz`, `install.sh`) y opcionalmente `.deb` con `cargo-deb` | Instalar en el equipo con una línea |
 | `rust-version` en `Cargo.toml` | Declarar la versión mínima de Rust |

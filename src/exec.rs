@@ -13,7 +13,7 @@ use crate::log::Logger;
 
 /// Estado de Ctrl+C, compartido entre el programa y el manejador de señales del sistema operativo.
 struct Sigint {
-    /// `true` fuera de un comando: Ctrl+C hace lo de siempre (terminar stepwise).
+    /// `true` fuera de un comando: Ctrl+C hace lo de siempre (terminar bash-resume).
     terminate: Arc<AtomicBool>,
     /// Se pone a `true` cuando llega un Ctrl+C.
     received: Arc<AtomicBool>,
@@ -23,7 +23,7 @@ struct Sigint {
 ///
 /// Las señales son de todo el proceso, así que esto es global por naturaleza: se registra una sola
 /// vez y no se quita nunca (quitar un manejador de signal-hook no restaura el comportamiento por defecto).
-/// Devuelve `None` si no se pudo registrar: entonces Ctrl+C simplemente termina stepwise.
+/// Devuelve `None` si no se pudo registrar: entonces Ctrl+C simplemente termina bash-resume.
 fn sigint() -> Option<&'static Sigint> {
     static SIGINT_FLAGS: OnceLock<Option<Sigint>> = OnceLock::new();
     SIGINT_FLAGS
@@ -51,7 +51,7 @@ pub fn execute(cmd: &str, workdir: &Path, log: &Logger) -> bool {
     log.info(&format!("Ejecutando comando: {cmd}"));
     let start = Instant::now();
 
-    // Mientras dura el comando, Ctrl+C lo detiene a él (la terminal le envía SIGINT), pero no a stepwise.
+    // Mientras dura el comando, Ctrl+C lo detiene a él (la terminal le envía SIGINT), pero no a bash-resume.
     let sigint = sigint();
     if let Some(s) = sigint {
         s.received.store(false, Ordering::SeqCst);
