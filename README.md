@@ -59,11 +59,11 @@ estado guardado y su línea sale en amarillo.
 | Tecla | Qué hace |
 |---|---|
 | `↑ ↓` / `k j` | Moverse |
-| `Tab` / `← →` / `Enter` | Cambiar entre ficheros y líneas |
+| `Enter` / `→` / `Tab` (en ficheros) | Entrar en las líneas del fichero |
+| `Esc` / `←` / `Tab` (en líneas) | Volver a los ficheros |
 | `Enter` / `y` / `s` (en líneas) | Ejecutar desde esa línea |
 | `o` (en líneas) | Ejecutar solo esa línea |
-| `Esc` | Volver al panel de ficheros / salir |
-| `q` / Ctrl+C | Salir sin ejecutar |
+| `q` / Ctrl+C, o `Esc` en ficheros | Salir sin ejecutar |
 
 ## Ficheros de pasos
 
@@ -146,5 +146,5 @@ cargo fmt
 
 - `demo/` tiene pasos de ejemplo para probar: `cargo run -- . -s demo/steps -H demo`.
 - Documentación: [comportamiento](docs/spec.md) · [decisiones](docs/decisions.md) ·
-  [arquitectura](docs/architecture.md) · [tareas](docs/tasks.md) · [comandos](docs/cheatsheet.md) ·
+  [arquitectura](docs/architecture.md) · [tareas](docs/tasks.md) · [ideas](docs/ideas.md) · [comandos](docs/cheatsheet.md) ·
   [flujo de trabajo](docs/README.md).

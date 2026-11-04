@@ -3,6 +3,9 @@
 Una entrada por tarea: los conceptos que han salido, las dudas resueltas y dónde ampliar.
 Rust Book: <https://doc.rust-lang.org/book/> (abreviado **RB**, por ejemplo RB 7.2 = capítulo 7.2).
 
+> Es un diario: refleja el código **en el momento de cada tarea**. Las "demos" de `main.rs` que se mencionan
+> eran provisionales y ya no existen; el comportamiento actual está en [spec.md](spec.md).
+
 ---
 
 ## T0 — Andamiaje

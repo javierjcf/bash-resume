@@ -67,62 +67,44 @@ Para jugar y aprender. Todos se lanzan desde la raíz del proyecto.
 
 ## Probar a mano
 
-La demo de `main.rs` cambia en cada tarea; estos comandos prueban lo que ya existe.
-Todo usa `demo/` (`state.json` y `migration.log` se crean ahí y git los ignora).
+Todo usa `demo/`: pasos de ejemplo en `demo/steps/` y `demo/onerror`. `state.json` y `migration.log`
+se crean ahí y git los ignora. `export STEPWISE_HOME=demo` ahorra escribir `-H demo`.
 
-**Ayuda y argumentos (T3)**
-```bash
-cargo run -- --help
-cargo run -- --steps-path x            # flag incorrecto: sugerencia y código 2
-echo $?                                # código de salida del último comando
-STEPWISE_HOME=/tmp cargo run           # home desde variable de entorno
-```
-
-**Estado (T4)**
-```bash
-rm -f demo/state.json && cargo run     # sin estado: lo crea vacío
-cat demo/state.json
-echo '{"current_file": "02-fallar", "last_command": "false", "last_line_index": 3}' > demo/state.json
-cargo run                              # estado válido
-echo '{ roto' > demo/state.json && cargo run   # corrupto: avisa y lo recrea
-```
-
-**Log (T5)**
-```bash
-cargo run                              # mensajes en consola, con colores
-cat demo/migration.log                 # lo mismo, sin colores y acumulado (append)
-cargo run 2>/dev/null                  # el log va a stderr: así no se ve nada
-cargo run 2>&1 | less -R               # sin terminal → sin colores
-tail -f demo/migration.log             # en otra terminal: ver el log en vivo
-```
-
-**Flujo completo (T7–T8)**
+**Primera vez y reanudar**
 ```bash
 rm -f demo/state.json                  # empezar de cero
-cargo run -- . -s demo/steps -H demo   # primera vez: rutas por argumento → [M] → [Y]
-cargo run -- -H demo                   # después: recuerda workdir y pasos; muestra el punto pendiente
-echo $?                                # 1 si el último comando falló, 0 si no
-cargo run                              # sin -H ni STEPWISE_HOME: pregunta el home
-printf 'n\n' | cargo run -- -H demo    # responder por tubería (útil para scripts)
+cargo run -- . -s demo/steps -H demo   # sin estado → [M] → menú: Enter, Enter → ejecuta hasta el `false`
+echo $?                                # 1: falló un comando (0 si terminó, se paró en `#.` o salió)
+cargo run -- -H demo                   # recuerda workdir y pasos; propone continuar en el `false`
+cat demo/state.json                    # por dónde va
+tail -f demo/migration.log             # en otra terminal: el log en vivo
 ```
-Para "arreglar" el fallo, cambia `false` por `true` en `demo/steps/02-fallar` y responde `[Y]`:
-seguirá hasta el `#.`, y la siguiente vez se vuelve a parar ahí. Después, `git checkout demo/steps`.
+Para "arreglar" el fallo, cambia `false` por `true` en `demo/steps/02-fallar` y responde `Y`: seguirá
+hasta el `#.`, y la siguiente vez se vuelve a parar ahí. Después, `git checkout demo/steps`.
 
-**Menú (T11–T12)**
-```bash
-cargo run -- -H demo                   # responde `m`: se abre el menú
-```
-`↑↓`/`jk` mover · `Tab`/`←→` cambiar de panel · `Enter`/`y`/`s` ejecutar desde la línea · `o` solo esa línea ·
-`Esc` volver · `q` (o Ctrl+C) salir. Sin terminal (`printf 'm\n' | cargo run -- -H demo`) da un error claro.
+**Preguntas y menú**
+- Pregunta inicial: `Y`/`S` continuar · `O` un solo comando · `M` menú · `N` salir.
+- Menú: `↑↓`/`jk` mover · `Tab`/`←→` cambiar de panel · `Enter`/`y`/`s` ejecutar desde la línea ·
+  `o` solo esa línea · `Esc` volver · `q` (o Ctrl+C) salir.
+- Sin terminal, el menú da un error claro: `printf 'm\n' | cargo run -- -H demo`.
+- Responder por tubería (scripts): `printf 'n\n' | cargo run -- -H demo`.
 
-**Ctrl+C (T10)**
+**Ctrl+C**
 ```bash
 printf 'echo a\nsleep 30\necho b\n' > demo/steps/03-esperar   # paso largo de prueba
-rm -f demo/state.json && cargo run -- . -s demo/steps -H demo
+cargo run -- -H demo                   # M → baja a 03-esperar → Enter → Enter
 ```
-Responde `m`, `y` y pulsa **Ctrl+C** durante el `sleep 30`: el log muestra `⛔ Ctrl+C detectado`, se ejecuta
-`onerror`, el estado queda en el `sleep` y `echo $?` da 1. Pulsa Ctrl+C en una pregunta: sale sin hacer nada.
+Pulsa **Ctrl+C** durante el `sleep 30`: el log muestra `⛔ Ctrl+C detectado`, se ejecuta `onerror`, el
+estado queda en el `sleep` y `echo $?` da 1. En una pregunta, Ctrl+C sale sin hacer nada.
 Al terminar: `rm demo/steps/03-esperar`.
+
+**Casos raros**
+```bash
+cargo run -- --steps-path x            # flag incorrecto: sugerencia y código 2
+echo '{ roto' > demo/state.json && cargo run -- -H demo   # estado corrupto: avisa y lo recrea
+cargo run -- -H demo 2>/dev/null       # el log va a stderr: solo se ve la salida de los comandos
+cargo run -- -H demo 2>&1 | less -R    # sin terminal → el log sale sin colores
+```
 
 **Trucos de shell útiles**
 | Comando | Para qué |

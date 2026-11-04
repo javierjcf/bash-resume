@@ -55,6 +55,7 @@ stepwise/
 │   ├── architecture.md # Módulos, imports, tests y errores
 │   ├── decisions.md   # ADRs cortos D1…D9 (contexto, decisión, alternativas)
 │   ├── tasks.md       # Tareas [ ] / [~] / [x] / [-], criterio de aceptación y conceptos de Rust
+│   ├── ideas.md       # Valoración de la app y mejoras propuestas
 │   ├── cheatsheet.md  # Comandos de cargo/rustup y pruebas manuales
 │   └── learning.md    # Diario: conceptos aprendidos por tarea, dudas resueltas, enlaces al Rust Book
 ├── demo/              # Pasos de ejemplo (steps/) y onerror para probar a mano
@@ -105,4 +106,4 @@ stepwise/
 - Ejecutar Python (`pyBashResume/`) y Rust alternadamente sobre el mismo `state.json` (pendiente: lo hace Javier).
 
 ## Estado
-T0–T8 y T10–T13 hechas; T9 descartada (D9). Ideas futuras en la sección final de `docs/spec.md`.
+T0–T8 y T10–T13 hechas; T9 descartada (D9). Ideas futuras en `docs/ideas.md`.

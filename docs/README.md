@@ -5,8 +5,10 @@
 | [spec.md](spec.md) | **Qué** hace el programa: el comportamiento observable y la fuente de verdad. |
 | [architecture.md](architecture.md) | **Cómo** está organizado el código: módulos, imports, tests y errores. |
 | [decisions.md](decisions.md) | **Por qué** está hecho así: ADRs cortos, solo se añaden. |
-| [tasks.md](tasks.md) | **Qué falta**: tareas con estado y criterio de aceptación. |
-| [cheatsheet.md](cheatsheet.md) | Chuleta de comandos de cargo y rustup para jugar. |
+| [tasks.md](tasks.md) | **Qué se ha hecho**: tareas con estado y criterio de aceptación. |
+| [ideas.md](ideas.md) | **Qué se podría hacer**: valoración de la app y mejoras propuestas. |
+| [plan.md](plan.md) | El plan inicial de la reescritura, actualizado con las decisiones. |
+| [cheatsheet.md](cheatsheet.md) | Chuleta de comandos de cargo y rustup, y cómo probar stepwise a mano. |
 | [learning.md](learning.md) | **Qué hemos aprendido**: diario de conceptos de Rust por tarea. |
 
 ## Flujo de trabajo

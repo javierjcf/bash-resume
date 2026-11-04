@@ -20,8 +20,8 @@ Estructura **plana**: un fichero por módulo. Con ~600 líneas no hacen falta su
 
 ```
 src/
-├── main.rs     binario: parsea los args con clap y llama a stepwise::run
-├── lib.rs      declara los módulos (pub mod …) y expone run()
+├── main.rs     binario: parsea los args con clap, llama a app::run y devuelve el código de salida
+├── lib.rs      declara los módulos (pub mod …) y el helper with_path para los errores
 ├── cli.rs      struct Args (clap)
 ├── app.rs      flujo principal: resolver rutas, preguntas Y/M/O/N y lanzar el runner
 ├── parser.rs   tipos de línea, clasificar y leer ficheros de pasos
@@ -29,7 +29,8 @@ src/
 ├── log.rs      logger a fichero y consola
 ├── exec.rs     ejecutar un comando (terminal heredada, código de salida, Ctrl+C)
 ├── runner.rs   recorrido de los pasos, stop, once y onerror
-└── menu.rs     TUI ratatui
+├── menu.rs     menú: lógica (Menu, handle_key) y dibujo con ratatui (render, choose)
+└── testutil.rs utilidades para los tests unitarios (temp_dir); solo con `cargo test`
 tests/
 └── runner.rs   tests de integración (pasos de ejemplo de principio a fin)
 ```
@@ -42,10 +43,11 @@ app ──► state, runner, menu (choose, pasado como closure), log
 runner ──► parser, state, exec, log
 menu ──► parser, state, runner (Mode)
 exec ──► log
-parser, state, log ──► (solo std y crates externos)
+state ──► parser
+parser, log ──► (solo std, crates externos y with_path)
 ```
 
-Regla: **no hay ciclos**. Los módulos de abajo (`parser`, `state`, `log`) no conocen a los de arriba. Así se pueden testear aislados.
+Regla: **no hay ciclos**. Los módulos de abajo (`parser`, `log`, `state`) no conocen a los de arriba. Así se pueden testear aislados.
 
 ## Módulos e imports: cómo funciona en Rust
 
@@ -85,6 +87,8 @@ Si un módulo creciera mucho, pasaría a ser una carpeta: `src/menu.rs` + `src/m
 ## Errores
 
 - Los módulos devuelven `std::io::Result<T>` (casi todos los errores aquí son de E/S) y se propagan con `?`.
+- Al leer o escribir un fichero, el error lleva la ruta: `.map_err(with_path(path))?` (`lib.rs`). Si no, el usuario vería `stream did not contain valid UTF-8` sin saber qué fichero es.
+- `state.json` se guarda de forma atómica (temporal + `rename`), para que un corte nunca lo deje a medias.
 - `app::run` devuelve `io::Result<ExitCode>` (todos nuestros errores son de E/S). `main` imprime el error con `Display` (`❌ Error: …`) y sale con código 1.
 - Las funciones que preguntan reciben `&mut impl BufRead` y `&mut impl Write` en lugar de usar `stdin`/`stdout` directamente: así los tests les pasan texto inventado.
 - Nada de `unwrap()` fuera de los tests (D6).

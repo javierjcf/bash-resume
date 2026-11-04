@@ -92,7 +92,7 @@ El formato es **compatible con la versión Python**:
 ```
 
 - Si no existe, se crea con todo a `null`. Si está corrupto, se avisa y se recrea. Si le faltan claves, se completan con `null`.
-- Se guarda **en cada cambio**.
+- Se guarda **en cada cambio**, de forma atómica (se escribe `state.json.tmp` y se renombra): si el proceso muere a mitad, queda el estado anterior, nunca uno a medias.
 - **Válido** si: `current_file`, `last_line_index` y `last_command` tienen valor; el fichero existe; la línea existe, y su texto (sin espacios al inicio ni al final) coincide con `last_command`.
 - **[cambio]** `last_line_index = 0` no es válido (en Python, `lines[0 - 1]` apuntaba a la última línea).
 - Rust escribe el JSON con 2 espacios de sangría y Python con 4; los dos leen cualquiera.
@@ -107,6 +107,7 @@ El formato es **compatible con la versión Python**:
 - **[cambio]** Una respuesta no válida con estado válido vuelve a preguntar (en Python abría el menú).
 - **[cambio]** Elegir una línea en el menú (`Enter`/`y`/`o`) ya confirma: se guarda en el estado y se ejecuta, sin volver a preguntar (D5). Salir del menú sin elegir termina sin ejecutar nada.
 - Si se cierra la entrada (Ctrl+D) en una pregunta: `❌ Error: entrada cerrada` y código 1.
+- Los errores de lectura o escritura de ficheros indican la ruta (por ejemplo `…/steps/02-x: stream did not contain valid UTF-8`).
 - **Código de salida:** 1 si un comando falló (o por un error de E/S); 0 en el resto de casos (terminado, parada `#.`, una vez, salir).
 
 ### 7.2 Menú (TUI) **[cambio]**
@@ -155,10 +156,7 @@ stepwise [WORKDIR] [-s|--steps DIR] [-H|--home DIR]
 
 - Si se pulsa Ctrl+C fuera de un comando (en las preguntas), stepwise termina sin ejecutar nada. **[cambio]** Termina por la señal (el shell muestra código 130), sin el mensaje `❌ Interrumpido por el usuario.` de Python.
 
-## Fuera de alcance (por ahora) y mejoras posibles
+## Fuera de alcance y mejoras posibles
 
-- `cd` persistente entre líneas (por ejemplo, con una marca `#cd dir`). Encaja en el runner si se necesita.
-- **Preguntar tras un Ctrl+C** en vez de dar el paso por fallado: `[R] Reintentar | [S] Saltar y seguir | [N] Salir`.
-  Ctrl+C se mantiene como gesto para interrumpir: una tecla propia (por ejemplo `S`) chocaría con los prompts
-  de los comandos, porque mientras corren el teclado es suyo (D9). Con `R`/`S` no se lanzaría `onerror`
-  (la interrupción es intencionada). Encajaría como `Outcome::Interrupted` en el runner y una pregunta en `app`.
+Las ideas para el futuro (preguntar tras un fallo o un Ctrl+C, `cd` persistente, modo no interactivo…)
+están en [ideas.md](ideas.md).
