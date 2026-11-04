@@ -219,3 +219,33 @@ Rust Book: <https://doc.rust-lang.org/book/> (abreviado **RB**, por ejemplo RB 7
 - `eprintln!` escribe en stderr (≈ el `StreamHandler` de `logging`, que también va a stderr).
 - *Dead code*: Rust avisa de funciones, constantes o campos privados que nadie usa. Python no avisa nunca.
 - `chrono::Local::now().format("%Y-%m-%d %H:%M:%S")` = `datetime.now().strftime(...)`.
+
+---
+
+## T6 — `exec`: ejecutar un comando
+
+**`std::process::Command`** (std::process)
+- Patrón *builder*: `Command::new("sh").arg("-c").arg(cmd).current_dir(dir).status()`. Equivale a `subprocess.run(cmd, shell=True, cwd=dir)`.
+- `.status()` lanza el proceso, **espera** a que termine y devuelve `io::Result<ExitStatus>`. Por defecto el hijo **hereda** stdin/stdout/stderr: su salida va directa a la terminal.
+- Hay **dos niveles de error**: `Err(e)` = ni siquiera se pudo lanzar (no existe `sh`, el directorio no existe…); `Ok(status)` con `!status.success()` = se lanzó y terminó mal.
+- `status.code()` es `Option<i32>`: `None` si el proceso murió por una señal (Ctrl+C, `kill -9`). Por eso se usa `map_or(...)`.
+- `.arg(cmd)` pasa el comando como **un solo argumento**: no hay que escapar comillas a mano (no es una cadena de shell que montemos nosotros).
+
+**`match` con guarda sobre `Result`**
+- `Ok(s) if s.success() => …`, `Ok(s) => …`, `Err(e) => …`: tres casos, en orden. Equivale a `try/except` más un `if returncode == 0`.
+- `let ok = match … { … };`: el `match` devuelve el `bool`, que se usa tras registrar el tiempo.
+
+**Tiempo: `Instant` y `Duration`** (std::time)
+- `Instant::now()` + `.elapsed()` = `time.monotonic()` con resta. Es un reloj **monótono**: no salta si cambia la hora del sistema (a diferencia de `time.time()`).
+- `Duration::as_secs()` da los segundos enteros; `/` y `%` con enteros, como `//` y `%` en Python.
+
+**Préstamos al pasar el logger**
+- `execute(cmd: &str, workdir: &Path, log: &Logger)`: los tres argumentos son **préstamos de lectura**. `execute` usa el logger, pero no se lo queda ni puede cambiar su fuente.
+- En `main`, `log` es `let mut` (porque llama a `set_source`) y se presta como `&log` en cada `execute`. Entre llamadas, el préstamo ya ha terminado, así que se podría volver a usar `&mut` (el borrow checker mira **cuánto dura** cada préstamo, no solo dónde se declara).
+
+**Evitar estado global**
+- `current_dir(workdir)` afecta solo a ese hijo; `std::env::set_current_dir` cambiaría el directorio de todo el proceso (y de todos los hilos, incluidos los tests). Decisión D8.
+
+**Tests con procesos**
+- La salida de los hijos no la captura `cargo test` (va a la terminal real). Por eso los tests usan comandos silenciosos (`true`, `false`, `exit 3`, `test …`).
+- Funciones que devuelven tuplas: `fn setup(...) -> io::Result<(PathBuf, Logger)>` y `let (dir, log) = setup("x")?;` (desestructuración, como en Python).

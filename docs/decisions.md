@@ -63,3 +63,10 @@ Se activan solo los features `crossterm`, `std` y `layout-cache`, sin widgets ex
 **Decisión.** `src/lib.rs` con toda la lógica y `src/main.rs` mínimo (RB 12.3). Un fichero por módulo, sin
 subcarpetas. Tests unitarios en cada módulo y de integración en `tests/`. Detalle en [architecture.md](architecture.md).
 **Alternativas.** Todo en el binario: no permite tests de integración en `tests/` y mezcla el arranque con la lógica.
+
+## D8 — Directorio de trabajo por comando, sin `chdir`
+
+**Contexto.** Python hace `os.chdir(execution_path)`, que cambia el directorio de todo el proceso (estado global).
+**Decisión.** `execute(cmd, workdir, log)` lanza cada comando con `Command::current_dir(workdir)`. El proceso de stepwise no cambia de directorio.
+**Motivo.** El comando ve exactamente lo mismo, pero las rutas relativas de stepwise (`--home`, `--steps`) siguen funcionando y los tests no dependen del directorio actual (que es compartido entre hilos).
+**Alternativas.** `std::env::set_current_dir` (global, como en Python).

@@ -11,7 +11,7 @@ Cada tarea deja el proyecto **compilando y con los tests en verde**. Las referen
 | T3 | [x] | `cli` con clap |
 | T4 | [x] | `state`: state.json |
 | T5 | [x] | `log`: fichero + consola |
-| T6 | [ ] | `exec` simple (sin PTY) |
+| T6 | [x] | `exec` simple (sin PTY) |
 | T7 | [ ] | `runner`: recorrido de pasos |
 | T8 | [ ] | `main`: flujo completo → **MVP** |
 | T9 | [ ] | `exec` con PTY + heurística |
@@ -53,7 +53,7 @@ Cada tarea deja el proyecto **compilando y con los tests en verde**. Las referen
 - **Rust:** structs que poseen recursos (`File`), `write!`/`format!`, préstamos y mutabilidad, `chrono::Local`.
 
 ### T6 — `exec` simple (§4, sin PTY)
-- **Hace:** `execute(cmd, &Logger) -> bool` con `sh -c` y stdio heredado, más el tiempo de ejecución.
+- **Hace:** `execute(cmd, workdir, &Logger) -> bool` con `sh -c`, stdio heredado y directorio de trabajo propio (D8), más el tiempo de ejecución.
 - **Aceptación:** tests: `true` → éxito, `false` → fallo.
 - **Rust:** `std::process::Command`, `ExitStatus`, `Instant` y `Duration`.
 
@@ -63,7 +63,7 @@ Cada tarea deja el proyecto **compilando y con los tests en verde**. Las referen
 - **Rust:** slices, índices (`usize`), `enumerate`/`skip`, retornos tempranos, tests de integración.
 
 ### T8 — `app`: flujo completo → **MVP** (§2, §7.1)
-- **Hace:** en `app.rs`, resolución de home, workdir y steps; `choose_action` (Y/O/N; M avisa "aún no disponible") y `chdir`.
+- **Hace:** en `app.rs`, resolución de home, workdir y steps; `choose_action` (Y/O/N; M avisa "aún no disponible").
 - **Aceptación:** se usa de verdad con los pasos de ejemplo, sin menú ni PTY.
 - **Rust:** leer de stdin, organización de `main`, `Box<dyn Error>`, `std::process::exit`.
 

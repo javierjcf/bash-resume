@@ -15,7 +15,7 @@ o desde cualquier punto elegido en un menú interactivo.
 | Nombre | Contenido | Cómo se resuelve |
 |---|---|---|
 | **home** | `state.json`, `migration.log`, `onerror` | `-H/--home DIR` → env `STEPWISE_HOME` → pregunta interactiva. No se guarda en el estado. **[cambio]** En Python era el directorio del script. |
-| **workdir** (`execution_path` en el estado) | Directorio donde se ejecutan los comandos (se hace `chdir`) | argumento posicional `WORKDIR` → `state.json` → pregunta interactiva |
+| **workdir** (`execution_path` en el estado) | Directorio donde se ejecutan los comandos | argumento posicional `WORKDIR` → `state.json` → pregunta interactiva |
 | **steps** (`steps_path` en el estado) | Carpeta con los ficheros de pasos | `-s/--steps` → `state.json` → `migration-steps` → pregunta interactiva |
 
 - **[cambio]** En Python, `--steps-path` tenía `default="migration-steps"` en argparse, así que si existía `./migration-steps`, siempre ganaba al valor de `state.json`. Ahora el valor por defecto solo se usa si no hay argumento ni estado.
@@ -44,6 +44,8 @@ o desde cualquier punto elegido en un menú interactivo.
 ## 4. Ejecución de un comando
 
 - Se ejecuta como `sh -c "<línea>"` en `execution_path`. Cada línea es un proceso nuevo, así que un `cd` no afecta a la siguiente.
+- **[cambio]** No se hace `chdir` en el propio programa: cada comando se lanza con ese directorio de trabajo (D8). El comando ve lo mismo.
+- Si el comando no se puede lanzar (por ejemplo, el directorio no existe), cuenta como fallo.
 - La salida (stdout y stderr) se muestra en tiempo real **como si fuera una terminal**, conservando colores y barras de progreso, y además se captura para la heurística.
 - **¿Es un error?**
   - `exit 0` → éxito.
