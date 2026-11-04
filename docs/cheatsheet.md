@@ -50,7 +50,7 @@ Para jugar y aprender. Todos se lanzan desde la raíz del proyecto.
 | Comando | Qué hace |
 |---|---|
 | `cargo tree` | Árbol de dependencias |
-| `cargo tree -i rustix` | Quién depende de `rustix` |
+| `cargo tree -i signal-hook` | Quién depende de `signal-hook` |
 | `cargo tree --duplicates` | Crates compilados en varias versiones |
 | `cargo update --dry-run` | Qué se actualizaría (y qué versiones incompatibles hay) |
 | `cargo update` | Actualiza `Cargo.lock` dentro de los rangos de `Cargo.toml` |

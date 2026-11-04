@@ -13,7 +13,9 @@ Hay dos objetivos a la vez:
 
 **Modo de trabajo:** Claude escribe el código de cada tarea en pasos pequeños y explica los conceptos de Rust que aparecen (con referencias al Rust Book). Javier pregunta, prueba y modifica. Se hace una tarea por iteración.
 
-**¿Es complicado?** No. La dificultad es baja-media: ~600 líneas Rust. Lo delicado es el PTY + Ctrl+C (~80 líneas).
+**¿Es complicado?** No. La dificultad es baja-media: ~600 líneas Rust. Al descartar el PTY (D9), lo más delicado que queda es el Ctrl+C (~15 líneas).
+
+> Este plan se actualiza cuando cambia una decisión. El detalle vivo está en `docs/tasks.md` y `docs/decisions.md`.
 
 ## Paso R0: reorganización (primer paso)
 No se toca la carpeta actual (`/home/javier/dev/cmnt-forks/pyBashResume`): es el directorio de esta sesión y queda intacta.
@@ -24,15 +26,18 @@ No se toca la carpeta actual (`/home/javier/dev/cmnt-forks/pyBashResume`): es el
 5. Javier añade el remote de GitHub cuando lo cree (`git remote add origin …`). No hay commits ni push sin que él lo pida.
 
 ## Decisiones (→ `docs/decisions.md`)
-- **D1 – PTY con `rustix` + `signal-hook`.** Conserva colores reales y la captura de salida para la heurística `--stop-after-init`/255. No hay `unsafe`, y ambos crates ya son dependencias transitivas de crossterm.
+- ~~**D1 – PTY con `rustix` + `signal-hook`.**~~ Sustituida por D9.
 - **D2 – `clap` (derive) para la CLI.**
 - **D3 – Directorio home** (`state.json`, `migration.log`, `onerror`). Se resuelve en este orden: `--home DIR` → variable `STEPWISE_HOME` → pregunta interactiva validada. No se guarda en el estado.
 - **D4 – `state.json` con el mismo formato que Python**, para poder alternar entre las dos versiones.
 - **D5 – Menú ratatui en una sola pantalla** con dos paneles y la confirmación integrada.
 - **D6 – Convenciones:** identificadores en inglés; comentarios, docs y mensajes en español.
+- **D7 – Librería + binario fino**, módulos planos (`src/lib.rs` con la lógica, `src/main.rs` mínimo).
+- **D8 – Directorio de trabajo por comando** (`Command::current_dir`), sin `chdir` global. Cada línea sigue empezando en el workdir.
+- **D9 – Sin PTY ni heurística de Odoo.** En Odoo 11–18, `exit 255` con `--stop-after-init` es siempre una excepción al inicializar la BD (un error real). Cualquier código ≠ 0 es fallo; el comando hereda la terminal (colores y prompts). Fuera `rustix`; `signal-hook` solo para Ctrl+C.
 
 ## Dependencias
-`ratatui` (backend crossterm), `clap` (`derive`), `rustix` (`pty`, `process`, `event`), `signal-hook`,
+`ratatui` (backend crossterm, features mínimos), `clap` (`derive`, `env`), `signal-hook` (0.3, la misma que crossterm),
 `serde` (`derive`) + `serde_json`, `chrono` (`default-features=false`, `clock`).
 Los tests usan `std::env::temp_dir()`.
 
@@ -45,11 +50,16 @@ stepwise/
 ├── pyBashResume/      # Original, ignorado por git, solo consulta
 ├── docs/
 │   ├── README.md      # Índice + descripción del flujo de trabajo
+│   ├── plan.md        # Este plan
 │   ├── spec.md        # Comportamiento observable (formato de pasos, state.json, flujo, log, CLI, menú)
-│   ├── decisions.md   # ADRs cortos D1…D6 (contexto, decisión, alternativas)
-│   ├── tasks.md       # Tareas [ ] / [~] / [x], criterio de aceptación y conceptos de Rust
+│   ├── architecture.md # Módulos, imports, tests y errores
+│   ├── decisions.md   # ADRs cortos D1…D9 (contexto, decisión, alternativas)
+│   ├── tasks.md       # Tareas [ ] / [~] / [x] / [-], criterio de aceptación y conceptos de Rust
+│   ├── cheatsheet.md  # Comandos de cargo/rustup y pruebas manuales
 │   └── learning.md    # Diario: conceptos aprendidos por tarea, dudas resueltas, enlaces al Rust Book
-└── src/  main.rs cli.rs parser.rs state.rs log.rs exec.rs runner.rs menu.rs
+├── demo/              # Pasos de ejemplo (steps/) y onerror para probar a mano
+├── tests/runner.rs    # Tests de integración
+└── src/  main.rs lib.rs cli.rs app.rs parser.rs state.rs log.rs exec.rs runner.rs menu.rs testutil.rs
 ```
 `spec.md` toma como referencia la versión Python y anota las correcciones, por ejemplo el crash con un fichero vacío en el menú, donde `idx=None` llega a `idx + 1`.
 
@@ -64,9 +74,9 @@ stepwise/
 | T5 | `log`: fichero + consola con color, fuente actual | log idéntico al de Python | structs con recursos, `Display`, préstamos |
 | T6 | `exec` simple: `Command` con stdio heredado + tiempo | ejecuta un comando | `std::process`, `Instant`, `ExitStatus` |
 | T7 | `runner`: run_steps, next_cmd, stop, once, onerror | pasos de ejemplo de principio a fin | slices, índices, bucles, tests de integración |
-| T8 | `main`: home/env/prompt, `set_path`, `choose_action` | **MVP usable** (sin menú ni PTY) | stdin, organización de `main`, errores propios |
-| T9 | `exec` con PTY + tee + `is_real_error` | colores y heurística | `OwnedFd`, RAII, `Read`/`Write` |
-| T10 | Ctrl+C: signal-hook + poll + `kill_process_group` | Ctrl+C mata al hijo y guarda el estado | `Arc`, `AtomicBool`, señales |
+| T8 | `app`: home/env/prompt, `set_path`, `choose_action` | **MVP usable** (sin menú) | stdin, organización de `main`, errores propios |
+| T9 | ~~`exec` con PTY + heurística~~ — **descartada (D9)** | — | — |
+| T10 | Ctrl+C: `signal_hook::flag` durante `execute` | Ctrl+C para el comando, registra el fallo y lanza onerror | `Arc`, `AtomicBool`, señales |
 | T11 | `menu`: estado de la app + teclas (testeable sin terminal) | tests de navegación | máquina de estados con enums |
 | T12 | `menu`: render ratatui (paneles, colores, barra) | menú completo | `Layout`, widgets, `Style` |
 | T13 | Integración, README, verificación manual | paridad con Python | — |
@@ -90,8 +100,6 @@ stepwise/
 ## Verificación final (T13)
 - `cargo test && cargo clippy -- -D warnings`.
 - Carpeta `steps/` de ejemplo:
-  - `01-a`: `echo`, `ls --color=always` y una línea `#>`.
-  - `02-b`: `false`, para comprobar onerror y que el estado queda en esa línea.
-  - `03-c`: una línea `#.`.
-- Casos a probar: reanudar, menú, "una vez" y Ctrl+C durante `sleep 30`.
+  - Los de `demo/steps/`: `echo`, `ls --color=always`, `cd`, `#>`, un `false` (onerror y estado) y un `#.`.
+- Casos a probar: reanudar, menú, "una vez", un prompt interactivo (`read -p`) y Ctrl+C durante `sleep 30`.
 - Ejecutar Python (`pyBashResume/`) y Rust alternadamente sobre el mismo `state.json`.

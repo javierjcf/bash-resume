@@ -284,3 +284,23 @@ Rust Book: <https://doc.rust-lang.org/book/> (abreviado **RB**, por ejemplo RB 7
 - Cada fichero de `tests/` es un **crate aparte** que solo ve lo `pub` (`use stepwise::...`). No ven `#[cfg(test)]` de la librería: por eso tienen su propio helper.
 - `struct Project` con `impl Drop`: al salir del test (aunque falle con panic), `drop` borra el directorio temporal. Es RAII hecho a mano: el `Drop` de Rust es el `__exit__` de un `with`, pero automático.
 - Comandos que escriben en `out` (`echo a >> out`) permiten comprobar qué se ejecutó y en qué orden, sin capturar la salida.
+
+---
+
+## Inciso — TTY, PTY y por qué no hay PTY (D9, T9 descartada)
+
+**Conceptos de terminal (no son de Rust, pero hay que tenerlos claros)**
+- **TTY**: lo que un programa ve como "una terminal" (`/dev/pts/N`), con pantalla y teclado detrás. Cualquier programa puede preguntar `isatty()` / `is_terminal()` y cambia de comportamiento: colores, barras de progreso y prompts solo si hay terminal.
+- **Heredar la terminal** (lo que hace `Command` por defecto): el hijo escribe directamente en tu TTY → colores ✅, prompts ✅, pero el padre **no ve** la salida.
+- **Tubería** (`Stdio::piped()`): el padre lee la salida ✅, pero el hijo ve que no hay terminal → sin colores ni prompts.
+- **PTY** (pseudo-terminal): una terminal falsa creada por el padre. El hijo cree que hay terminal (colores ✅) y el padre lee ✅, pero el teclado no llega al hijo salvo que se reenvíe a mano.
+- Ver los códigos ANSI de verdad: `script -qc "cmd" /dev/null | /usr/bin/cat -v`.
+
+**Por qué se descartó**
+- La única razón para leer la salida era la heurística de `exit 255` + `--stop-after-init`. En el código de Odoo (11–18), un 255 sale de `sys.exit(-1)` tras `CRITICAL Failed to initialize database`: siempre es un error real.
+- Lección de proceso: **antes de implementar algo complejo, comprobar si hace falta** (código fuente de la dependencia + historial de git del original). Se han ahorrado una tarea, una dependencia y unas 80 líneas.
+
+**Ctrl+C sin hacer nada (comprobado con un Ctrl+C real a través de un PTY de Python)**
+- La terminal envía SIGINT a todo el grupo en primer plano: el comando y stepwise mueren a la vez.
+- El estado ya queda bien (apunta a la línea interrumpida, porque se guarda el *siguiente* comando tras cada éxito), pero no queda registro en el log ni se ejecuta `onerror` → eso es lo que hará T10.
+- Trampa al probarlo: un proceso lanzado con `&` desde un shell no interactivo **ignora SIGINT**, así que `kill -INT` no simula bien un Ctrl+C. Y `pkill -f texto` también mata a tu propio shell si su línea de comandos contiene ese texto.

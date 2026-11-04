@@ -6,7 +6,7 @@ se marca como *Sustituida por Dn*.
 
 ---
 
-## D1 — PTY con `rustix` + `signal-hook`
+## D1 — PTY con `rustix` + `signal-hook` — *Sustituida por D9*
 
 **Contexto.** Necesitamos dos cosas a la vez: que el comando vea una terminal (para que mantenga
 colores y barras de progreso) y capturar su salida (para la heurística de §4 de la spec). Con una
@@ -70,3 +70,30 @@ subcarpetas. Tests unitarios en cada módulo y de integración en `tests/`. Deta
 **Decisión.** `execute(cmd, workdir, log)` lanza cada comando con `Command::current_dir(workdir)`. El proceso de stepwise no cambia de directorio.
 **Motivo.** El comando ve exactamente lo mismo, pero las rutas relativas de stepwise (`--home`, `--steps`) siguen funcionando y los tests no dependen del directorio actual (que es compartido entre hilos).
 **Alternativas.** `std::env::set_current_dir` (global, como en Python).
+
+## D9 — Sin PTY ni heurística de Odoo: un 255 es un error
+
+**Contexto.** La versión Python ejecutaba cada comando dentro de un PTY para poder *leer* su salida sin
+perder los colores, y así aplicar una heurística: con `exit 255` y `--stop-after-init`, solo era error
+si la salida contenía `ERROR`, `Traceback`… Leer la salida tiene un precio:
+
+| Cómo se lanza el comando | Colores | Leer la salida | Responder a prompts (`sudo`, `[y/N]`) |
+|---|---|---|---|
+| Heredando la terminal (T6) | ✅ | ❌ | ✅ |
+| Tubería | ❌ (el hijo ve que no hay terminal) | ✅ | ❌ |
+| PTY (Python) | ✅ (terminal falsa) | ✅ | ❌ salvo reenviar el teclado (mucho código) |
+
+**Lo que dice Odoo.** En el código de 11.0, 13.0, 16.0, 17.0 y 18.0 (`odoo/service/server.py`,
+`preload_registries`), con `--stop-after-init` el proceso sale con `sys.exit(rc)`:
+`0` = bien; `1`+ = tests fallidos (con `--test-enable`); `-1` → **255** = **excepción al inicializar o
+actualizar la BD** (`CRITICAL Failed to initialize database` + `Traceback`). El 255 es **siempre un error real**.
+
+**Historia.** La primera versión de pyBashResume daba el 255 por bueno ("código 255 es normal"); al ver
+fallos que no paraban el script se añadió la búsqueda de textos, que en la práctica siempre detectaba el
+error (todo 255 lleva `CRITICAL`). Es decir: hacía lo mismo que "≠ 0 = fallo", pero con un PTY de por
+medio. Además, con `--logfile` (salida vacía) habría dado un fallo real por bueno.
+
+**Decisión.** No hay heurística: cualquier código ≠ 0 es fallo. Sin PTY: el comando hereda la terminal
+(colores y prompts funcionan). Si un paso concreto debe aceptar un código, se dice en el propio paso:
+`cmd || true`. Se elimina la dependencia `rustix`; `signal-hook` se mantiene solo para Ctrl+C (T10).
+**Alternativas.** PTY para todo (como Python); PTY solo para comandos con `--stop-after-init`.

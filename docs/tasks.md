@@ -1,6 +1,6 @@
 # Tareas
 
-Estado: `[ ]` pendiente · `[~]` en curso · `[x]` hecha.
+Estado: `[ ]` pendiente · `[~]` en curso · `[x]` hecha · `[-]` descartada (se conserva el número).
 Cada tarea deja el proyecto **compilando y con los tests en verde**. Las referencias `§n` apuntan a [spec.md](spec.md).
 
 | # | Estado | Tarea |
@@ -11,11 +11,11 @@ Cada tarea deja el proyecto **compilando y con los tests en verde**. Las referen
 | T3 | [x] | `cli` con clap |
 | T4 | [x] | `state`: state.json |
 | T5 | [x] | `log`: fichero + consola |
-| T6 | [x] | `exec` simple (sin PTY) |
+| T6 | [x] | `exec`: ejecutar un comando |
 | T7 | [x] | `runner`: recorrido de pasos |
-| T8 | [ ] | `main`: flujo completo → **MVP** |
-| T9 | [ ] | `exec` con PTY + heurística |
-| T10 | [ ] | Ctrl+C |
+| T8 | [ ] | `app`: flujo completo → **MVP** |
+| T9 | [-] | ~~`exec` con PTY + heurística~~ (D9) |
+| T10 | [ ] | Ctrl+C durante un comando |
 | T11 | [ ] | `menu`: estado y teclas |
 | T12 | [ ] | `menu`: render ratatui |
 | T13 | [ ] | Integración y verificación final |
@@ -52,7 +52,7 @@ Cada tarea deja el proyecto **compilando y con los tests en verde**. Las referen
 - **Aceptación:** test del formato del fichero; prueba visual de los colores en consola.
 - **Rust:** structs que poseen recursos (`File`), `write!`/`format!`, préstamos y mutabilidad, `chrono::Local`.
 
-### T6 — `exec` simple (§4, sin PTY)
+### T6 — `exec`: ejecutar un comando (§4)
 - **Hace:** `execute(cmd, workdir, &Logger) -> bool` con `sh -c`, stdio heredado y directorio de trabajo propio (D8), más el tiempo de ejecución.
 - **Aceptación:** tests: `true` → éxito, `false` → fallo.
 - **Rust:** `std::process::Command`, `ExitStatus`, `Instant` y `Duration`.
@@ -64,18 +64,16 @@ Cada tarea deja el proyecto **compilando y con los tests en verde**. Las referen
 
 ### T8 — `app`: flujo completo → **MVP** (§2, §7.1)
 - **Hace:** en `app.rs`, resolución de home, workdir y steps; `choose_action` (Y/O/N; M avisa "aún no disponible").
-- **Aceptación:** se usa de verdad con los pasos de ejemplo, sin menú ni PTY.
+- **Aceptación:** se usa de verdad con los pasos de ejemplo, sin menú.
 - **Rust:** leer de stdin, organización de `main`, `Box<dyn Error>`, `std::process::exit`.
 
-### T9 — `exec` con PTY + heurística (§4)
-- **Hace:** sustituye el stdio heredado por un PTY de `rustix`, con *tee* a stdout y a un buffer, e implementa `is_real_error`.
-- **Aceptación:** `ls --color=auto` sale coloreado; tests de `is_real_error`.
-- **Rust:** `OwnedFd`, RAII (`Drop`), traits `Read`/`Write`, conversión `Stdio::from`.
+### T9 — ~~`exec` con PTY + heurística~~ — descartada (D9)
+- En Odoo, un `exit 255` con `--stop-after-init` siempre es un error real, así que la heurística no aporta nada y el PTY tampoco. Los comandos siguen heredando la terminal (colores y prompts funcionan).
 
-### T10 — Ctrl+C (§4)
-- **Hace:** `signal-hook::flag` + `poll` con timeout + `kill_process_group(SIGINT)`.
-- **Aceptación:** Ctrl+C durante `sleep 30` mata al hijo y deja el estado en esa línea; Ctrl+C en una pregunta sale con código 1.
-- **Rust:** `Arc`, `AtomicBool` y `Ordering`, señales Unix.
+### T10 — Ctrl+C durante un comando (§4)
+- **Hace:** mientras dura `execute`, stepwise registra SIGINT con `signal_hook::flag` (así no muere); el comando, que está en el mismo grupo de la terminal, recibe el Ctrl+C y se detiene. Al volver, si el flag está activo: log `⛔ Ctrl+C detectado…` y fallo normal (estado + `onerror`). Al terminar el comando se quita el registro, para que Ctrl+C en las preguntas siga saliendo del programa.
+- **Aceptación:** Ctrl+C durante `sleep 30` detiene el `sleep`, deja el estado en esa línea, registra la interrupción y ejecuta `onerror`; Ctrl+C en una pregunta sale sin ejecutar nada.
+- **Rust:** `Arc`, `AtomicBool` y `Ordering`, señales Unix, registrar y quitar un *handler*.
 
 ### T11 — `menu`: estado y teclas (§7.2)
 - **Hace:** `struct App` (panel activo, índices) y `fn handle_key(...) -> Option<Outcome>`, sin dibujar nada.

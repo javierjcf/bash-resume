@@ -27,7 +27,7 @@ src/
 ├── parser.rs   tipos de línea, clasificar y leer ficheros de pasos
 ├── state.rs    state.json
 ├── log.rs      logger a fichero y consola
-├── exec.rs     ejecutar un comando (PTY, Ctrl+C, heurística)
+├── exec.rs     ejecutar un comando (terminal heredada, código de salida, Ctrl+C)
 ├── runner.rs   recorrido de los pasos, stop, once y onerror
 └── menu.rs     TUI ratatui
 tests/

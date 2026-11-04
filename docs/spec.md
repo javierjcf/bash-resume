@@ -46,12 +46,10 @@ o desde cualquier punto elegido en un menú interactivo.
 - Se ejecuta como `sh -c "<línea>"` en `execution_path`. Cada línea es un proceso nuevo, así que un `cd` no afecta a la siguiente.
 - **[cambio]** No se hace `chdir` en el propio programa: cada comando se lanza con ese directorio de trabajo (D8). El comando ve lo mismo.
 - Si el comando no se puede lanzar (por ejemplo, el directorio no existe), cuenta como fallo.
-- La salida (stdout y stderr) se muestra en tiempo real **como si fuera una terminal**, conservando colores y barras de progreso, y además se captura para la heurística.
-- **¿Es un error?**
-  - `exit 0` → éxito.
-  - `exit 255` y el comando contiene `--stop-after-init` → solo es error si la salida contiene alguno de estos textos: `ERROR`, `CRITICAL`, `FATAL`, `Exception`, `Traceback`, `UserError`, `ValueError`, `ImportError`, `ModuleNotFoundError`, `Failed to`, `Unable to`, `dependency is not met`. Es el caso de Odoo, que devuelve 255 al parar.
-  - Cualquier otro código → error.
-- **Ctrl+C** durante un comando: se envía SIGINT al grupo de procesos del hijo, se espera a que termine y cuenta como fallo.
+- El comando **hereda la terminal**: su salida aparece en tiempo real con sus colores y barras de progreso, y puede leer del teclado (prompts de `sudo`, `[y/N]`…). **[cambio]** En Python se usaba un PTY y los prompts no funcionaban.
+- **¿Es un error?** `exit 0` → éxito; cualquier otro código (o morir por una señal) → fallo.
+  **[cambio]** Se elimina la heurística de Python para `exit 255` + `--stop-after-init`: en Odoo un 255 es siempre un error real (D9). Para aceptar un código en un paso concreto: `cmd || true`.
+- **Ctrl+C** durante un comando: la terminal se lo envía al comando, que se detiene; stepwise **no** se detiene, registra `⛔ Ctrl+C detectado…` y lo trata como un fallo (estado en esa línea + `onerror`), igual que Python.
 - Al terminar se registra en el log `Tiempo de ejecución: h:m:s` (sin ceros a la izquierda).
 
 ## 5. Recorrido de los pasos (`run_steps`)
@@ -146,4 +144,4 @@ stepwise [WORKDIR] [-s|--steps DIR] [-H|--home DIR]
 
 ## Fuera de alcance (por ahora)
 
-- Pasar el stdin interactivo al comando (por ejemplo, prompts de `sudo`). En Python tampoco se hacía.
+- `cd` persistente entre líneas (por ejemplo, con una marca `#cd dir`). Encaja en el runner si se necesita.
