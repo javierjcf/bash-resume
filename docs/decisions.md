@@ -25,7 +25,8 @@ El aislamiento del hijo se hace con `std::process::Command::process_group(0)`, s
 ## D2 — `clap` (derive) para la CLI
 
 **Contexto.** Hay pocos argumentos, pero queremos `--help`, validación y buenos mensajes de error.
-**Decisión.** Usar `clap` con `derive`: es estable y estándar de facto.
+**Decisión.** Usar `clap` con los features `derive` y `env`: es estable y estándar de facto. `env` resuelve
+`--home` → `STEPWISE_HOME` sin código propio. Nombres: `WORKDIR`, `-s/--steps` y `-H/--home` (más cortos que en Python).
 **Alternativas.** Parsear `std::env::args` a mano, que da menos código de dependencias pero más código propio y peor UX.
 
 ## D3 — Directorio home obligatorio (`--home` → `STEPWISE_HOME` → pregunta)

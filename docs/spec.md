@@ -14,9 +14,9 @@ o desde cualquier punto elegido en un menú interactivo.
 
 | Nombre | Contenido | Cómo se resuelve |
 |---|---|---|
-| **home** | `state.json`, `migration.log`, `onerror` | `--home DIR` → env `STEPWISE_HOME` → pregunta interactiva. No se guarda en el estado. **[cambio]** En Python era el directorio del script. |
-| **execution_path** | Directorio donde se ejecutan los comandos (se hace `chdir`) | argumento posicional → `state.json` → pregunta interactiva |
-| **steps_path** | Carpeta con los ficheros de pasos | `-s/--steps-path` → `state.json` → `migration-steps` → pregunta interactiva |
+| **home** | `state.json`, `migration.log`, `onerror` | `-H/--home DIR` → env `STEPWISE_HOME` → pregunta interactiva. No se guarda en el estado. **[cambio]** En Python era el directorio del script. |
+| **workdir** (`execution_path` en el estado) | Directorio donde se ejecutan los comandos (se hace `chdir`) | argumento posicional `WORKDIR` → `state.json` → pregunta interactiva |
+| **steps** (`steps_path` en el estado) | Carpeta con los ficheros de pasos | `-s/--steps` → `state.json` → `migration-steps` → pregunta interactiva |
 
 - **[cambio]** En Python, `--steps-path` tenía `default="migration-steps"` en argparse, así que si existía `./migration-steps`, siempre ganaba al valor de `state.json`. Ahora el valor por defecto solo se usa si no hay argumento ni estado.
 - Una ruta es válida si existe. Se guarda como ruta absoluta.
@@ -128,8 +128,11 @@ En Python eran dos menús curses encadenados más una pregunta de confirmación.
 ## 9. CLI
 
 ```
-stepwise [EXECUTION_PATH] [-s|--steps-path DIR] [--home DIR]
+stepwise [WORKDIR] [-s|--steps DIR] [-H|--home DIR]
 ```
+
+- **[cambio]** Nombres más cortos que en Python (`execution_path` → `WORKDIR`, `--steps-path` → `--steps`). Las claves de `state.json` no cambian (D4).
+- `--help`/`-h` y `--version`/`-V` los genera clap. Un argumento desconocido muestra un error con una sugerencia y sale con código 2.
 
 - Si se pulsa Ctrl+C fuera de un comando (en las preguntas): `❌ Interrumpido por el usuario.` y se sale con código 1.
 

@@ -99,3 +99,37 @@ Rust Book: <https://doc.rust-lang.org/book/> (abreviado **RB**, por ejemplo RB 7
 - *Shadowing*: `let dir = Path::new(&dir);` redefine `dir` con otro tipo. Es idiomático para transformar un valor.
 - `Vec::new()` + `push` + `sort()`. `vec!["a", "b"]` crea un `Vec` literal. `Vec<String>` se compara con `vec!["a"]` (de `&str`) gracias a `PartialEq`.
 - Tests que devuelven `io::Result<()>` pueden usar `?`. Los nombres de directorio temporal llevan el nombre del test + el PID, para que no choquen en paralelo.
+
+---
+
+## T3 — `cli` con clap
+
+**Derive de un crate externo** (RB 19.5)
+- `#[derive(Parser)]` es una *macro procedural* de clap: lee el struct al compilar y genera el parser. Es la misma idea que `derive(Debug)`, pero la escribe un crate.
+- `///` encima del struct y de cada campo **se convierte en el texto de `--help`**. La documentación y la ayuda son lo mismo.
+- `#[command(version)]` toma la versión de `Cargo.toml`. `#[arg(short, long)]` deriva `-s`/`--steps` del nombre del campo; `short = 'H'` la fuerza (porque `-h` es la ayuda).
+- Un campo sin `#[arg]` es **posicional** (`WORKDIR`); `value_name` cambia el `<DIR>` que se muestra.
+- `env = "STEPWISE_HOME"` (feature `env`): si falta el flag, clap lee la variable.
+
+**El tipo define el comportamiento**
+- `Option<PathBuf>` → argumento **opcional**. Con `PathBuf` sin `Option`, clap lo haría obligatorio. Con `bool`, sería un flag sin valor.
+- Python (`argparse`) define los argumentos con llamadas en tiempo de ejecución; clap los deduce del **tipo** al compilar.
+
+**`Args::parse()` frente a `try_parse_from(...)`**
+- `parse()` lee los argumentos reales; si son incorrectos, imprime el error y **termina el proceso** (código 2).
+- `try_parse_from([...])` devuelve un `Result`: es la que se usa en tests, con argumentos inventados.
+- `Args::command().debug_assert()` (trait `CommandFactory`): test recomendado por clap que valida la definición (por ejemplo, flags repetidos).
+
+**Traits que hay que importar**
+- `Args::parse()` solo existe si el trait `Parser` está en scope (`use clap::Parser;`). En Rust, los métodos de un trait solo se ven si se importa el trait.
+
+**`Option` en la práctica**
+- `args.steps.as_deref()` convierte `Option<PathBuf>` en `Option<&Path>` (prestado, sin mover ni copiar).
+- `.unwrap_or(default)` → el valor, o `default` si es `None` (≈ `x or default` en Python).
+- `{args:#?}` = Debug "bonito", con saltos de línea.
+
+**Variables de entorno en tests**
+- En la edición 2024, `std::env::set_var` es `unsafe`, porque modificar el entorno con hilos en paralelo es una carrera de datos. Por eso no hay test de `STEPWISE_HOME`: se prueba a mano.
+
+**Broken pipe**
+- `cargo run | head` hace que `println!` entre en pánico al cerrarse la tubería (`Broken pipe`). Es el comportamiento estándar de Rust (en Python sería un `BrokenPipeError`). No afecta al uso normal.

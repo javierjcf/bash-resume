@@ -12,14 +12,14 @@ de bash con `set -e` se para, pero no sabe continuar.
 ## Uso
 
 ```bash
-stepwise [EXECUTION_PATH] [-s|--steps-path DIR] [--home DIR]
+stepwise [WORKDIR] [-s|--steps DIR] [-H|--home DIR]
 ```
 
 | Argumento | Qué es | Si no se indica |
 |---|---|---|
-| `EXECUTION_PATH` | Directorio donde se ejecutan los comandos | El guardado en el estado, o se pregunta |
-| `-s, --steps-path` | Carpeta con los ficheros de pasos | El guardado, `migration-steps`, o se pregunta |
-| `--home` | Dónde viven `state.json`, `migration.log` y `onerror` | `$STEPWISE_HOME`, o se pregunta |
+| `WORKDIR` | Directorio donde se ejecutan los comandos | El guardado en el estado, o se pregunta |
+| `-s, --steps` | Carpeta con los ficheros de pasos | La guardada, `migration-steps`, o se pregunta |
+| `-H, --home` | Dónde viven `state.json`, `migration.log` y `onerror` | `$STEPWISE_HOME`, o se pregunta |
 
 Al arrancar muestra el punto pendiente y pregunta:
 `[Y/S] Continuar | [M] Menú | [O] Una vez | [N] Salir`.

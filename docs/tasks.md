@@ -8,7 +8,7 @@ Cada tarea deja el proyecto **compilando y con los tests en verde**. Las referen
 | T0 | [x] | Andamiaje del proyecto y docs |
 | T1 | [x] | `parser`: clasificar líneas |
 | T2 | [x] | `parser`: listar ficheros y leerlos |
-| T3 | [ ] | `cli` con clap |
+| T3 | [x] | `cli` con clap |
 | T4 | [ ] | `state`: state.json |
 | T5 | [ ] | `log`: fichero + consola |
 | T6 | [ ] | `exec` simple (sin PTY) |
@@ -38,8 +38,8 @@ Cada tarea deja el proyecto **compilando y con los tests en verde**. Las referen
 - **Rust:** `Result`, operador `?`, `Path` y `PathBuf`, iteradores (`filter`, `map`, `collect`), `sort`.
 
 ### T3 — `cli` con clap (§9)
-- **Hace:** `struct Args { execution_path: Option<PathBuf>, steps_path: Option<PathBuf>, home: Option<PathBuf> }`.
-- **Aceptación:** `cargo run -- --help` muestra la ayuda en español.
+- **Hace:** `struct Args { workdir: Option<PathBuf>, steps: Option<PathBuf>, home: Option<PathBuf> }`, con `home` leído también de `STEPWISE_HOME`.
+- **Aceptación:** `cargo run -- --help` muestra nuestras descripciones en español (los textos propios de clap, como "Usage" u "Options", siguen en inglés).
 - **Rust:** macros `derive`, atributos, `Option`.
 
 ### T4 — `state`: state.json (§6)
@@ -63,7 +63,7 @@ Cada tarea deja el proyecto **compilando y con los tests en verde**. Las referen
 - **Rust:** slices, índices (`usize`), `enumerate`/`skip`, retornos tempranos, tests de integración.
 
 ### T8 — `app`: flujo completo → **MVP** (§2, §7.1)
-- **Hace:** en `app.rs`, resolución de home, `execution_path` y `steps_path`; `choose_action` (Y/O/N; M avisa "aún no disponible") y `chdir`.
+- **Hace:** en `app.rs`, resolución de home, workdir y steps; `choose_action` (Y/O/N; M avisa "aún no disponible") y `chdir`.
 - **Aceptación:** se usa de verdad con los pasos de ejemplo, sin menú ni PTY.
 - **Rust:** leer de stdin, organización de `main`, `Box<dyn Error>`, `std::process::exit`.
 

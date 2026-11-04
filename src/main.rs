@@ -1,15 +1,16 @@
 use std::io;
 use std::path::Path;
 
+use clap::Parser;
+use stepwise::cli::Args;
 use stepwise::parser::{list_step_files, parse_file};
 
 fn main() -> io::Result<()> {
-    // Demo provisional de T2: la ruta se recibirá con clap en T3.
-    let dir = std::env::args()
-        .nth(1)
-        .unwrap_or_else(|| "demo/steps".to_string());
-    let dir = Path::new(&dir);
+    let args = Args::parse();
+    println!("{args:#?}");
 
+    // Demo provisional de T3: el flujo real (estado, preguntas…) llega en T8.
+    let dir = args.steps.as_deref().unwrap_or(Path::new("demo/steps"));
     for file in list_step_files(dir)? {
         println!("== {file}");
         for (i, line) in parse_file(&dir.join(&file))?.iter().enumerate() {
