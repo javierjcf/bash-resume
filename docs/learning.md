@@ -431,3 +431,11 @@ Rust Book: <https://doc.rust-lang.org/book/> (abreviado **RB**, por ejemplo RB 7
 - `Option::is_some_and(|(file, _)| file == i)`: `true` si hay valor y cumple la condición.
 - `c.to_ascii_lowercase()`: `Y` y `y` hacen lo mismo.
 - `io::Error::other("mensaje")`: crea un `io::Error` propio con un texto, para errores que no vienen del sistema.
+
+---
+
+## T13 — Cierre: compilar e instalar
+
+- `cargo build --release` optimiza (binario de ~2 MB, con todas las dependencias dentro). `cargo install --path .` compila en release y copia a `~/.cargo/bin`.
+- Rust enlaza los crates **estáticamente**, pero la librería C del sistema (glibc) se enlaza **dinámicamente**: el binario pide la glibc con la que se compiló o una más nueva (`objdump -T bin | grep GLIBC_`, `ldd bin`).
+- Target `x86_64-unknown-linux-musl`: enlaza también la librería C (musl) dentro → binario 100 % estático. Viable aquí porque ninguna dependencia compila código C (`libc` y `linux-raw-sys` son solo declaraciones en Rust).

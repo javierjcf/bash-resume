@@ -18,7 +18,7 @@ Cada tarea deja el proyecto **compilando y con los tests en verde**. Las referen
 | T10 | [x] | Ctrl+C durante un comando |
 | T11 | [x] | `menu`: estado y teclas |
 | T12 | [x] | `menu`: render ratatui |
-| T13 | [ ] | Integración y verificación final |
+| T13 | [x] | README y cierre de la documentación |
 
 ---
 
@@ -87,6 +87,6 @@ Cada tarea deja el proyecto **compilando y con los tests en verde**. Las referen
 - **Aceptación:** el menú funciona y la terminal se restaura siempre, también tras un panic.
 - **Rust:** `ratatui::init/restore`, `Layout`, `List`/`ListState`, `Style`, closures.
 
-### T13 — Integración y verificación final
-- **Hace:** conecta el menú con `main`, escribe el `README.md` y hace la verificación manual completa (ver el plan).
-- **Aceptación:** paridad con Python; se pueden alternar las dos versiones con el mismo `state.json`.
+### T13 — README y cierre de la documentación
+- **Hace:** `README.md` de uso (inicio rápido, preguntas, menú, formato de pasos, qué pasa cuando…, compilar e instalar con musl, diferencias con pyBashResume) y repaso de los docs. El menú ya quedó conectado en T12.
+- **Pendiente (lo hace Javier):** verificación frente a la versión Python alternando las dos sobre el mismo `state.json`, y la compilación/distribución del binario.

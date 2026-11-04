@@ -45,7 +45,7 @@ Los tests usan `std::env::temp_dir()`.
 ```
 stepwise/
 ├── AGENTS.md          # Para la IA: flujo spec→tareas, modo enseñanza, convenciones, "empieza leyendo docs/tasks.md"
-├── README.md          # Uso (se completa en T13)
+├── README.md          # Uso, compilación y diferencias con pyBashResume
 ├── Cargo.toml  .gitignore
 ├── pyBashResume/      # Original, ignorado por git, solo consulta
 ├── docs/
@@ -102,4 +102,7 @@ stepwise/
 - Carpeta `steps/` de ejemplo:
   - Los de `demo/steps/`: `echo`, `ls --color=always`, `cd`, `#>`, un `false` (onerror y estado) y un `#.`.
 - Casos a probar: reanudar, menú, "una vez", un prompt interactivo (`read -p`) y Ctrl+C durante `sleep 30`.
-- Ejecutar Python (`pyBashResume/`) y Rust alternadamente sobre el mismo `state.json`.
+- Ejecutar Python (`pyBashResume/`) y Rust alternadamente sobre el mismo `state.json` (pendiente: lo hace Javier).
+
+## Estado
+T0–T8 y T10–T13 hechas; T9 descartada (D9). Ideas futuras en la sección final de `docs/spec.md`.
