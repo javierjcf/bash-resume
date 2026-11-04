@@ -53,7 +53,7 @@ Cada tarea deja el proyecto **compilando y con los tests en verde**. Las referen
 - **Rust:** structs que poseen recursos (`File`), `write!`/`format!`, préstamos y mutabilidad, `chrono::Local`.
 
 ### T6 — `exec`: ejecutar un comando (§4)
-- **Hace:** `execute(cmd, workdir, &Logger) -> bool` con `sh -c`, stdio heredado y directorio de trabajo propio (D8), más el tiempo de ejecución.
+- **Hace:** `execute(cmd, workdir, &Logger) -> bool` con `sh -c` (luego `bash -euo pipefail`, D10), stdio heredado y directorio de trabajo propio (D8), más el tiempo de ejecución.
 - **Aceptación:** tests: `true` → éxito, `false` → fallo.
 - **Rust:** `std::process::Command`, `ExitStatus`, `Instant` y `Duration`.
 

@@ -2,7 +2,7 @@
 
 ## Contexto
 pyBashResume (~700 líneas Python: `pyBashResume.py`, `ui_menu.py`, `custom_parser.py`, `custom_logging.py`)
-ejecuta ficheros de pasos en orden alfabético. Cada línea es un proceso `sh -c` independiente, con marcas
+ejecuta ficheros de pasos en orden alfabético. Cada línea es un proceso de shell independiente (`sh -c` en Python, `bash -euo pipefail` en stepwise), con marcas
 `#>` (log), `#.` (stop) y `#` (comentario). Guarda el estado en `state.json`, permite reanudar con un menú
 curses y lanza `onerror` cuando algo falla. Es un "runbook ejecutable con checkpoints": cubre lo que bash
 no sabe hacer (reanudar).

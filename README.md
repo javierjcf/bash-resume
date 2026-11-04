@@ -78,8 +78,12 @@ git pull origin master
 docker compose run --rm odoo --update all --stop-after-init
 ```
 
-- **Cada línea es un proceso `sh -c` aparte**, y todas empiezan en `WORKDIR`: un `cd` no se mantiene
+- **Cada línea es un proceso aparte**, y todas empiezan en `WORKDIR`: un `cd` no se mantiene
   en la línea siguiente (usa `cd dir && …` en la misma línea).
+- Se ejecutan con **`bash -euo pipefail`** (modo estricto, [D10](docs/decisions.md)), así que:
+  - puedes usar sintaxis de bash (`[[ ]]`, arrays, `{a,b}`, `<(…)`…);
+  - `a; b` se para si falla `a`, y `a | b` falla si falla cualquiera de los dos;
+  - una variable sin definir es un error: usa `${VAR:-valor}` para dar un valor por defecto.
 - Los comandos usan la terminal directamente: se ven sus colores y puedes responder a sus preguntas
   (`sudo`, `[y/N]`…).
 - **Cualquier código de salida distinto de 0 es un fallo.**
@@ -103,7 +107,7 @@ Ficheros del home (`-H`):
 
 ## Compilar e instalar
 
-Necesitas Rust (<https://rustup.rs>).
+Necesitas Rust (<https://rustup.rs>). Para ejecutarlo, la máquina necesita `bash`.
 
 ```bash
 cargo build --release              # → target/release/stepwise
@@ -125,6 +129,7 @@ cargo build --release --target x86_64-unknown-linux-musl
 - `-H/--home` (o `STEPWISE_HOME`): `state.json`, el log y `onerror` viven en una carpeta por proyecto, no junto al script.
 - Argumentos más cortos: `WORKDIR`, `-s/--steps` (antes `--steps-path`).
 - Menú en una sola pantalla; elegir una línea ya confirma la ejecución.
+- Los comandos se ejecutan con `bash -euo pipefail` en vez de `sh -c` ([D10](docs/decisions.md)).
 - Los comandos pueden pedir datos por teclado (prompts de `sudo`, `[y/N]`…).
 - Ya no hay heurística para `exit 255` con `--stop-after-init`: en Odoo un 255 es siempre un error ([D9](docs/decisions.md)).
 - Código de salida 1 si falla un comando (útil en scripts).
