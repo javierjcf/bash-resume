@@ -9,6 +9,37 @@ de bash con `set -e` se para, pero no sabe continuar.
 Reescritura en Rust de [pyBashResume](https://github.com/Comunitea/pyBashResume) (diferencias al final).
 Cambios por versión en [CHANGELOG.md](CHANGELOG.md).
 
+## Instalación
+
+Binario estático para Linux x86_64 (funciona en cualquier distribución). Necesita `bash` para ejecutar los pasos.
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/javierjcf/stepwise/main/install.sh | sh
+```
+
+Descarga la última release, comprueba su checksum y deja `stepwise` en `~/.local/bin` (sin `sudo`).
+Si esa carpeta no está en tu `PATH`, el script te dice cómo añadirla. Opciones:
+
+```bash
+# Para todos los usuarios de la máquina, en /usr/local/bin:
+curl -fsSL https://raw.githubusercontent.com/javierjcf/stepwise/main/install.sh | sudo env STEPWISE_INSTALL_DIR=/usr/local/bin sh
+
+# Una versión concreta:
+curl -fsSL https://raw.githubusercontent.com/javierjcf/stepwise/main/install.sh | STEPWISE_VERSION=v0.1.0 sh
+```
+
+Para actualizar, se vuelve a ejecutar el mismo comando. Para desinstalar, basta con borrar el binario
+(`rm ~/.local/bin/stepwise`).
+
+**A mano**, sin script: descarga el `.tar.gz` de la [última release](https://github.com/javierjcf/stepwise/releases/latest),
+y luego:
+
+```bash
+sha256sum -c stepwise-v0.1.0-x86_64-unknown-linux-musl.tar.gz.sha256    # opcional: comprobar la descarga
+tar xzf stepwise-v0.1.0-x86_64-unknown-linux-musl.tar.gz
+install -m 755 stepwise-v0.1.0-x86_64-unknown-linux-musl/stepwise ~/.local/bin/
+```
+
 ## Inicio rápido
 
 ```bash
@@ -106,23 +137,22 @@ Ficheros del home (`-H`):
 
 Útil en scripts: `stepwise -H ~/migr && telegram-send "✅ Migración terminada"`.
 
-## Compilar e instalar
+## Compilar desde el código
 
-Necesitas Rust (<https://rustup.rs>). Para ejecutarlo, la máquina necesita `bash`.
+Necesitas Rust (<https://rustup.rs>).
 
 ```bash
 cargo build --release              # → target/release/stepwise
 cargo install --path .             # compila e instala en ~/.cargo/bin/stepwise
 ```
 
-El binario se enlaza con la glibc del sistema donde se compila, así que puede no funcionar en
-servidores con una glibc más antigua (`GLIBC_2.xx not found`). Para un binario **estático** que
-funcione en cualquier Linux x86_64:
+Ese binario se enlaza con la glibc del sistema donde se compila, así que puede no funcionar en
+servidores con una glibc más antigua (`GLIBC_2.xx not found`). El de las releases es **estático** (musl):
 
 ```bash
 rustup target add x86_64-unknown-linux-musl
-cargo build --release --target x86_64-unknown-linux-musl
-# → target/x86_64-unknown-linux-musl/release/stepwise  (copiar al servidor y listo)
+cargo build --release --locked --target x86_64-unknown-linux-musl
+# → target/x86_64-unknown-linux-musl/release/stepwise
 ```
 
 ## Diferencias con pyBashResume

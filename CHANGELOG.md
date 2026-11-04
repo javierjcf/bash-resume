@@ -22,6 +22,8 @@ misma funcionalidad y un único binario sin dependencias.
   código 1. Al reanudar se repite esa línea.
 - **Ctrl+C** durante un comando lo detiene a él, no a stepwise: queda registrado en el log y se trata como un fallo.
 - **Log** en `migration.log` y en pantalla, con el fichero de pasos en curso y la duración de cada comando.
+- **Instalación con una línea** (`curl … | sh`): descarga la release, comprueba el checksum y deja el binario
+  estático en `~/.local/bin` (o donde se indique).
 - Los comandos usan la terminal directamente: se ven sus colores y barras de progreso y se puede responder a sus
   preguntas (`sudo`, `[y/N]`…).
 
