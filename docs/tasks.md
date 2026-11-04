@@ -13,7 +13,7 @@ Cada tarea deja el proyecto **compilando y con los tests en verde**. Las referen
 | T5 | [x] | `log`: fichero + consola |
 | T6 | [x] | `exec`: ejecutar un comando |
 | T7 | [x] | `runner`: recorrido de pasos |
-| T8 | [ ] | `app`: flujo completo → **MVP** |
+| T8 | [x] | `app`: flujo completo → **MVP** |
 | T9 | [-] | ~~`exec` con PTY + heurística~~ (D9) |
 | T10 | [ ] | Ctrl+C durante un comando |
 | T11 | [ ] | `menu`: estado y teclas |
@@ -65,7 +65,8 @@ Cada tarea deja el proyecto **compilando y con los tests en verde**. Las referen
 ### T8 — `app`: flujo completo → **MVP** (§2, §7.1)
 - **Hace:** en `app.rs`, resolución de home, workdir y steps; `choose_action` (Y/O/N; M avisa "aún no disponible").
 - **Aceptación:** se usa de verdad con los pasos de ejemplo, sin menú.
-- **Rust:** leer de stdin, organización de `main`, `Box<dyn Error>`, `std::process::exit`.
+- **Rust:** leer de stdin, genéricos con `impl Trait` (`BufRead`, `Write`), `ExitCode`, `drop`, organización de `main`.
+- **Nota:** `[M]` es provisional (empieza por el principio) hasta el menú de T11–T12.
 
 ### T9 — ~~`exec` con PTY + heurística~~ — descartada (D9)
 - En Odoo, un `exit 255` con `--stop-after-init` siempre es un error real, así que la heurística no aporta nada y el PTY tampoco. Los comandos siguen heredando la terminal (colores y prompts funcionan).

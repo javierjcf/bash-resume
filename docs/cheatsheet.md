@@ -96,15 +96,17 @@ cargo run 2>&1 | less -R               # sin terminal → sin colores
 tail -f demo/migration.log             # en otra terminal: ver el log en vivo
 ```
 
-**Recorrido de pasos (T7)**
+**Flujo completo (T7–T8)**
 ```bash
-rm -f demo/state.json && cargo run     # desde el principio hasta el `false` de 02-fallar
-cargo run                              # reanuda en el `false`: vuelve a fallar y lanza onerror
-STEPWISE_ONCE=1 cargo run              # modo "una vez": un solo comando
-cargo run 2>/dev/null                  # solo la salida de los comandos
+rm -f demo/state.json                  # empezar de cero
+cargo run -- . -s demo/steps -H demo   # primera vez: rutas por argumento → [M] → [Y]
+cargo run -- -H demo                   # después: recuerda workdir y pasos; muestra el punto pendiente
+echo $?                                # 1 si el último comando falló, 0 si no
+cargo run                              # sin -H ni STEPWISE_HOME: pregunta el home
+printf 'n\n' | cargo run -- -H demo    # responder por tubería (útil para scripts)
 ```
-Para "arreglar" el fallo, cambia `false` por `true` en `demo/steps/02-fallar` y ejecuta `cargo run`:
-seguirá hasta el `#.`, y otra vez `cargo run` se vuelve a parar ahí. Después, `git checkout demo/steps`.
+Para "arreglar" el fallo, cambia `false` por `true` en `demo/steps/02-fallar` y responde `[Y]`:
+seguirá hasta el `#.`, y la siguiente vez se vuelve a parar ahí. Después, `git checkout demo/steps`.
 
 **Trucos de shell útiles**
 | Comando | Para qué |

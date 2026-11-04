@@ -304,3 +304,34 @@ Rust Book: <https://doc.rust-lang.org/book/> (abreviado **RB**, por ejemplo RB 7
 - La terminal envía SIGINT a todo el grupo en primer plano: el comando y stepwise mueren a la vez.
 - El estado ya queda bien (apunta a la línea interrumpida, porque se guarda el *siguiente* comando tras cada éxito), pero no queda registro en el log ni se ejecuta `onerror` → eso es lo que hará T10.
 - Trampa al probarlo: un proceso lanzado con `&` desde un shell no interactivo **ignora SIGINT**, así que `kill -INT` no simula bien un Ctrl+C. Y `pkill -f texto` también mata a tu propio shell si su línea de comandos contiene ese texto.
+
+---
+
+## T8 — `app`: el flujo completo (MVP)
+
+**Genéricos con `impl Trait`** (RB 10.1–10.2)
+- `fn ask(input: &mut impl BufRead, output: &mut impl Write, ...)`: acepta **cualquier** tipo que sepa leer líneas / escribir. En el programa son `stdin().lock()` y `stdout()`; en los tests, `&[u8]` (un texto) y `Vec<u8>` (memoria).
+- Es *duck typing* comprobado al compilar: en Python, cualquier objeto con `.readline()` vale y te enteras al ejecutar si no lo tiene; aquí el compilador exige que el tipo implemente el trait.
+- Cada tipo distinto genera su propia copia compilada de la función (*monomorphization*): sin coste en ejecución.
+
+**Leer de stdin**
+- `io::stdin().lock()` da un lector con búfer (`BufRead`). `read_line(&mut s)` **añade** la línea a `s` (con el `\n`) y devuelve los bytes leídos: `0` = la entrada se cerró (Ctrl+D o fin de tubería).
+- `write!` sin salto de línea + `output.flush()?`: sin el `flush`, la pregunta podría quedarse en el búfer y no verse antes de leer.
+
+**`drop` explícito**
+- `drop(input)` suelta el bloqueo de stdin antes de ejecutar los comandos. Normalmente no hace falta (se libera al final del bloque); aquí se adelanta a propósito. Después de `drop(x)`, usar `x` es un error de compilación (`E0382`, *use of moved value*): `drop` se queda con el valor.
+
+**`ExitCode`** (std::process)
+- `fn main() -> ExitCode` devuelve el código de salida de forma limpia (`ExitCode::SUCCESS` / `FAILURE`), sin `std::process::exit`, que corta el programa sin ejecutar los `Drop` pendientes.
+- `main` mínimo: parsear args → `app::run` → `match` del resultado. El error se imprime con `Display` (`{e}`), no con el `Debug` que salía con `main() -> io::Result<()>`.
+
+**`let ... else` con enums**
+- `let Action::Run(mode) = action else { ... return ... };`: si es `Run`, saca el `Mode`; si es otra variante, ejecuta el `else`, que tiene que salir.
+
+**Préstamos que terminan a tiempo**
+- `pick_dir(&[args.workdir.as_deref(), state.execution_path.as_deref()], ...)` presta `state` para leer; `pick_dir` devuelve un `PathBuf` propio, así que el préstamo acaba ahí y la línea siguiente puede hacer `state.execution_path = Some(...)` (escribir) sin `E0502`.
+- `candidates.iter().flatten()`: recorre un `&[Option<&Path>]` saltando los `None` (`Option` es iterable: 0 o 1 elementos).
+
+**Tests de interacción**
+- `let mut input = "y\nm\n".as_bytes();` simula lo que teclea el usuario; `String::from_utf8_lossy(&output)` recupera lo mostrado para comprobarlo.
+- `std::path::absolute(p)` = `os.path.abspath` (no resuelve enlaces simbólicos, a diferencia de `fs::canonicalize`).

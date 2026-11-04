@@ -98,6 +98,11 @@ El formato es **compatible con la versión Python**:
 - **Estado válido:** se muestra el resumen (directorios, fichero, línea y comando) y la pregunta
   `[Y/S] Continuar | [M] Menú | [O] Una vez | [N] Salir`.
 - **Estado inválido:** `El estado previo no es válido…` y la pregunta `[M] Abrir menú | [N] Salir`, que se repite hasta recibir una respuesta válida.
+- **[cambio]** Una respuesta no válida con estado válido vuelve a preguntar (en Python abría el menú).
+- Tras elegir en el menú se vuelve a esta pregunta, ya con el nuevo punto (en Python era una pregunta aparte, igual).
+- Si se cierra la entrada (Ctrl+D) en una pregunta: `❌ Error: entrada cerrada` y código 1.
+- **Código de salida:** 1 si un comando falló (o por un error de E/S); 0 en el resto de casos (terminado, parada `#.`, una vez, salir).
+- *Provisional hasta T11–T12:* `[M]` sitúa el estado en la primera línea del primer fichero con contenido.
 
 ### 7.2 Menú (TUI) **[cambio]**
 

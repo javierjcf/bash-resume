@@ -85,7 +85,8 @@ Si un módulo creciera mucho, pasaría a ser una carpeta: `src/menu.rs` + `src/m
 ## Errores
 
 - Los módulos devuelven `std::io::Result<T>` (casi todos los errores aquí son de E/S) y se propagan con `?`.
-- `app::run` devuelve `Result<(), Box<dyn std::error::Error>>`: acepta cualquier error y `main` lo imprime.
+- `app::run` devuelve `io::Result<ExitCode>` (todos nuestros errores son de E/S). `main` imprime el error con `Display` (`❌ Error: …`) y sale con código 1.
+- Las funciones que preguntan reciben `&mut impl BufRead` y `&mut impl Write` en lugar de usar `stdin`/`stdout` directamente: así los tests les pasan texto inventado.
 - Nada de `unwrap()` fuera de los tests (D6).
 
 ## Guías de referencia
