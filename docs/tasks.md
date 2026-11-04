@@ -15,7 +15,7 @@ Cada tarea deja el proyecto **compilando y con los tests en verde**. Las referen
 | T7 | [x] | `runner`: recorrido de pasos |
 | T8 | [x] | `app`: flujo completo → **MVP** |
 | T9 | [-] | ~~`exec` con PTY + heurística~~ (D9) |
-| T10 | [ ] | Ctrl+C durante un comando |
+| T10 | [x] | Ctrl+C durante un comando |
 | T11 | [ ] | `menu`: estado y teclas |
 | T12 | [ ] | `menu`: render ratatui |
 | T13 | [ ] | Integración y verificación final |
@@ -72,9 +72,10 @@ Cada tarea deja el proyecto **compilando y con los tests en verde**. Las referen
 - En Odoo, un `exit 255` con `--stop-after-init` siempre es un error real, así que la heurística no aporta nada y el PTY tampoco. Los comandos siguen heredando la terminal (colores y prompts funcionan).
 
 ### T10 — Ctrl+C durante un comando (§4)
-- **Hace:** mientras dura `execute`, stepwise registra SIGINT con `signal_hook::flag` (así no muere); el comando, que está en el mismo grupo de la terminal, recibe el Ctrl+C y se detiene. Al volver, si el flag está activo: log `⛔ Ctrl+C detectado…` y fallo normal (estado + `onerror`). Al terminar el comando se quita el registro, para que Ctrl+C en las preguntas siga saliendo del programa.
+- **Hace:** dos manejadores de SIGINT registrados una sola vez (`OnceLock`): `flag::register_conditional_default` (termina stepwise solo si `terminate` es `true`) y `flag::register` (anota que llegó). `execute` pone `terminate = false` mientras dura el comando; el comando recibe el Ctrl+C de la terminal y se detiene. Al volver: log `⛔ Ctrl+C detectado…` y fallo normal (estado + `onerror`). No se quita el manejador, porque signal-hook no restaura el comportamiento por defecto al quitarlo.
 - **Aceptación:** Ctrl+C durante `sleep 30` detiene el `sleep`, deja el estado en esa línea, registra la interrupción y ejecuta `onerror`; Ctrl+C en una pregunta sale sin ejecutar nada.
-- **Rust:** `Arc`, `AtomicBool` y `Ordering`, señales Unix, registrar y quitar un *handler*.
+- **Rust:** `Arc`, `AtomicBool` y `Ordering`, `OnceLock` y `static`, señales Unix.
+- **Verificación:** manual, con un Ctrl+C real (ver cheatsheet). Un test automático tendría que enviar señales al propio proceso de tests, que ejecuta tests en paralelo.
 
 ### T11 — `menu`: estado y teclas (§7.2)
 - **Hace:** `struct App` (panel activo, índices) y `fn handle_key(...) -> Option<Outcome>`, sin dibujar nada.

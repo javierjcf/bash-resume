@@ -108,6 +108,15 @@ printf 'n\n' | cargo run -- -H demo    # responder por tubería (útil para scri
 Para "arreglar" el fallo, cambia `false` por `true` en `demo/steps/02-fallar` y responde `[Y]`:
 seguirá hasta el `#.`, y la siguiente vez se vuelve a parar ahí. Después, `git checkout demo/steps`.
 
+**Ctrl+C (T10)**
+```bash
+printf 'echo a\nsleep 30\necho b\n' > demo/steps/03-esperar   # paso largo de prueba
+rm -f demo/state.json && cargo run -- . -s demo/steps -H demo
+```
+Responde `m`, `y` y pulsa **Ctrl+C** durante el `sleep 30`: el log muestra `⛔ Ctrl+C detectado`, se ejecuta
+`onerror`, el estado queda en el `sleep` y `echo $?` da 1. Pulsa Ctrl+C en una pregunta: sale sin hacer nada.
+Al terminar: `rm demo/steps/03-esperar`.
+
 **Trucos de shell útiles**
 | Comando | Para qué |
 |---|---|

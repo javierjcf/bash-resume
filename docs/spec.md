@@ -49,7 +49,7 @@ o desde cualquier punto elegido en un menú interactivo.
 - El comando **hereda la terminal**: su salida aparece en tiempo real con sus colores y barras de progreso, y puede leer del teclado (prompts de `sudo`, `[y/N]`…). **[cambio]** En Python se usaba un PTY y los prompts no funcionaban.
 - **¿Es un error?** `exit 0` → éxito; cualquier otro código (o morir por una señal) → fallo.
   **[cambio]** Se elimina la heurística de Python para `exit 255` + `--stop-after-init`: en Odoo un 255 es siempre un error real (D9). Para aceptar un código en un paso concreto: `cmd || true`.
-- **Ctrl+C** durante un comando: la terminal se lo envía al comando, que se detiene; stepwise **no** se detiene, registra `⛔ Ctrl+C detectado…` y lo trata como un fallo (estado en esa línea + `onerror`), igual que Python.
+- **Ctrl+C** durante un comando: la terminal se lo envía al comando, que se detiene; stepwise **no** se detiene, registra `⛔ Ctrl+C detectado…` y lo trata como un fallo (estado en esa línea + `onerror`, código 1), igual que Python. Cuenta como fallo aunque el comando termine con 0 al recibirlo.
 - Al terminar se registra en el log `Tiempo de ejecución: h:m:s` (sin ceros a la izquierda).
 
 ## 5. Recorrido de los pasos (`run_steps`)
@@ -145,8 +145,12 @@ stepwise [WORKDIR] [-s|--steps DIR] [-H|--home DIR]
 - **[cambio]** Nombres más cortos que en Python (`execution_path` → `WORKDIR`, `--steps-path` → `--steps`). Las claves de `state.json` no cambian (D4).
 - `--help`/`-h` y `--version`/`-V` los genera clap. Un argumento desconocido muestra un error con una sugerencia y sale con código 2.
 
-- Si se pulsa Ctrl+C fuera de un comando (en las preguntas): `❌ Interrumpido por el usuario.` y se sale con código 1.
+- Si se pulsa Ctrl+C fuera de un comando (en las preguntas), stepwise termina sin ejecutar nada. **[cambio]** Termina por la señal (el shell muestra código 130), sin el mensaje `❌ Interrumpido por el usuario.` de Python.
 
-## Fuera de alcance (por ahora)
+## Fuera de alcance (por ahora) y mejoras posibles
 
 - `cd` persistente entre líneas (por ejemplo, con una marca `#cd dir`). Encaja en el runner si se necesita.
+- **Preguntar tras un Ctrl+C** en vez de dar el paso por fallado: `[R] Reintentar | [S] Saltar y seguir | [N] Salir`.
+  Ctrl+C se mantiene como gesto para interrumpir: una tecla propia (por ejemplo `S`) chocaría con los prompts
+  de los comandos, porque mientras corren el teclado es suyo (D9). Con `R`/`S` no se lanzaría `onerror`
+  (la interrupción es intencionada). Encajaría como `Outcome::Interrupted` en el runner y una pregunta en `app`.

@@ -2,9 +2,43 @@
 
 use std::path::Path;
 use std::process::Command;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, OnceLock};
 use std::time::{Duration, Instant};
 
+use signal_hook::consts::SIGINT;
+use signal_hook::flag;
+
 use crate::log::Logger;
+
+/// Estado de Ctrl+C, compartido entre el programa y el manejador de señales del sistema operativo.
+struct Sigint {
+    /// `true` fuera de un comando: Ctrl+C hace lo de siempre (terminar stepwise).
+    terminate: Arc<AtomicBool>,
+    /// Se pone a `true` cuando llega un Ctrl+C.
+    received: Arc<AtomicBool>,
+}
+
+/// Registra los manejadores de SIGINT la primera vez que se llama y devuelve sus flags.
+///
+/// Las señales son de todo el proceso, así que esto es global por naturaleza: se registra una sola
+/// vez y no se quita nunca (quitar un manejador de signal-hook no restaura el comportamiento por defecto).
+/// Devuelve `None` si no se pudo registrar: entonces Ctrl+C simplemente termina stepwise.
+fn sigint() -> Option<&'static Sigint> {
+    static SIGINT_FLAGS: OnceLock<Option<Sigint>> = OnceLock::new();
+    SIGINT_FLAGS
+        .get_or_init(|| {
+            let terminate = Arc::new(AtomicBool::new(true));
+            let received = Arc::new(AtomicBool::new(false));
+            flag::register_conditional_default(SIGINT, Arc::clone(&terminate)).ok()?;
+            flag::register(SIGINT, Arc::clone(&received)).ok()?;
+            Some(Sigint {
+                terminate,
+                received,
+            })
+        })
+        .as_ref()
+}
 
 /// Ejecuta `cmd` con `sh -c` dentro de `workdir` y devuelve si terminó bien.
 ///
@@ -13,13 +47,34 @@ pub fn execute(cmd: &str, workdir: &Path, log: &Logger) -> bool {
     log.info(&format!("Ejecutando comando: {cmd}"));
     let start = Instant::now();
 
+    // Mientras dura el comando, Ctrl+C lo detiene a él (la terminal le envía SIGINT), pero no a stepwise.
+    let sigint = sigint();
+    if let Some(s) = sigint {
+        s.received.store(false, Ordering::SeqCst);
+        s.terminate.store(false, Ordering::SeqCst);
+    }
+
     let status = Command::new("sh")
         .arg("-c")
         .arg(cmd)
         .current_dir(workdir)
         .status();
 
+    let interrupted = match sigint {
+        Some(s) => {
+            s.terminate.store(true, Ordering::SeqCst);
+            s.received.swap(false, Ordering::SeqCst)
+        }
+        None => false,
+    };
+
     let ok = match status {
+        // Un comando interrumpido es un fallo aunque haya terminado con 0 (como en Python).
+        _ if interrupted => {
+            log.warn("⛔ Ctrl+C detectado: comando interrumpido");
+            log.error(&format!("Comando fallido (interrumpido con Ctrl+C): {cmd}"));
+            false
+        }
         Ok(status) if status.success() => {
             log.info("🔚 Proceso finalizado correctamente (exit code: 0)");
             log.info(&format!(

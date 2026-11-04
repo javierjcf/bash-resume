@@ -335,3 +335,37 @@ Rust Book: <https://doc.rust-lang.org/book/> (abreviado **RB**, por ejemplo RB 7
 **Tests de interacción**
 - `let mut input = "y\nm\n".as_bytes();` simula lo que teclea el usuario; `String::from_utf8_lossy(&output)` recupera lo mostrado para comprobarlo.
 - `std::path::absolute(p)` = `os.path.abspath` (no resuelve enlaces simbólicos, a diferencia de `fs::canonicalize`).
+
+---
+
+## T10 — Ctrl+C durante un comando
+
+**Señales Unix**
+- Ctrl+C hace que la terminal envíe **SIGINT** a todos los procesos del primer plano (el comando y stepwise). La acción por defecto es terminar.
+- Un *handler* (manejador) cambia esa acción. El sistema lo ejecuta **interrumpiendo el programa en cualquier instrucción**, y luego el programa sigue donde estaba.
+- Python hace lo mismo por debajo: CPython instala un handler en C que solo marca un flag, y luego el intérprete lanza `KeyboardInterrupt`.
+
+**Por qué es concurrencia**
+- El handler y el código normal se ejecutan "a la vez" (el handler se cuela entre dos instrucciones) y comparten datos. Es el mismo problema que dos hilos: si uno escribe mientras el otro lee sin coordinarse, hay una *carrera de datos*.
+- Dentro de un handler casi nada es seguro (ni reservar memoria, ni un `Mutex`). Lo seguro es tocar un **atómico**.
+
+**`AtomicBool` y `Ordering`** (std::sync::atomic, RB 16.3)
+- Un booleano que se lee y escribe "de una pieza" y es visible entre hilos (o desde un handler). `store(v, ord)`, `load(ord)`, `swap(v, ord)` (escribe y devuelve el valor anterior: leer y poner a `false` en un paso).
+- `Ordering` dice qué garantías de orden se dan respecto a otras operaciones de memoria. `SeqCst` es la más estricta y la más fácil de razonar; para un simple flag, `Relaxed` también valdría.
+- Se modifica con `&self` (no hace falta `&mut`): es *interior mutability* segura entre hilos.
+
+**`Arc`** (RB 16.3)
+- *Atomically Reference Counted*: varios dueños del mismo valor, con un contador de referencias atómico. `Arc::clone(&x)` no copia el valor, suma 1 al contador; el valor se libera cuando el último `Arc` desaparece.
+- signal-hook pide `Arc<AtomicBool>` porque el handler necesita su propia referencia al flag, que vive mientras viva el proceso.
+- Es el modelo de Python (contador de referencias), pero solo donde lo pides y seguro entre hilos. `Rc` es la versión no atómica, para un solo hilo.
+
+**`static` + `OnceLock`** (std::sync)
+- Las señales son de todo el proceso: el estado es global por naturaleza. `static X: OnceLock<T>` = variable global que se inicializa **una vez**, la primera vez que se usa (`get_or_init`), de forma segura aunque varios hilos lleguen a la vez.
+- `get_or_init(|| ...)` devuelve `&'static T`: un préstamo que vale para todo el programa.
+- `?` dentro de la closure que devuelve `Option`: si falla un registro, la closure devuelve `None` y Ctrl+C se comporta como siempre.
+
+**Lección de diseño: leer la documentación de la dependencia**
+- `signal_hook::low_level::unregister` **no** restaura la acción por defecto: después de quitar el handler, Ctrl+C se ignoraría para siempre. Por eso se registra una vez y se controla con un flag (`terminate`), en vez de registrar y quitar en cada comando.
+
+**Guardas en `match` que no miran el valor**
+- `_ if interrupted => …` como primera rama: si se interrumpió, da igual cómo terminó el comando.
