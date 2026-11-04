@@ -7,6 +7,7 @@ Pensado para procesos largos y repetibles (por ejemplo, migraciones de Odoo), do
 de bash con `set -e` se para, pero no sabe continuar.
 
 Reescritura en Rust de [pyBashResume](https://github.com/Comunitea/pyBashResume) (diferencias al final).
+Cambios por versión en [CHANGELOG.md](CHANGELOG.md).
 
 ## Inicio rápido
 
