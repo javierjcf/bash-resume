@@ -4,6 +4,8 @@ use std::fs;
 use std::io;
 use std::path::Path;
 
+use crate::with_path;
+
 /// Tipo de una línea de un fichero de pasos.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Kind {
@@ -55,7 +57,7 @@ pub fn classify(line: &str) -> Kind {
 /// Ignora los ocultos (que empiezan por `.`), los subdirectorios y los nombres que no son UTF-8.
 pub fn list_step_files(dir: &Path) -> io::Result<Vec<String>> {
     let mut files = Vec::new();
-    for entry in fs::read_dir(dir)? {
+    for entry in fs::read_dir(dir).map_err(with_path(dir))? {
         let entry = entry?;
         if !entry.path().is_file() {
             continue;
@@ -73,7 +75,7 @@ pub fn list_step_files(dir: &Path) -> io::Result<Vec<String>> {
 
 /// Lee un fichero de pasos y devuelve sus líneas clasificadas, sin el salto de línea.
 pub fn parse_file(path: &Path) -> io::Result<Vec<Line>> {
-    let content = fs::read_to_string(path)?;
+    let content = fs::read_to_string(path).map_err(with_path(path))?;
     Ok(content.lines().map(Line::new).collect())
 }
 
@@ -158,5 +160,22 @@ mod tests {
     #[test]
     fn parse_fails_if_file_missing() {
         assert!(parse_file(Path::new("/no/existe")).is_err());
+    }
+
+    #[test]
+    fn errors_say_which_file_failed() -> io::Result<()> {
+        let dir = temp_dir("parse-utf8")?;
+        let file = dir.join("02-latin1");
+        fs::write(&file, b"echo \xff\xfe\n")?;
+
+        let err = parse_file(&file).unwrap_err();
+
+        assert!(err.to_string().contains("02-latin1"), "{err}");
+        assert_eq!(
+            err.kind(),
+            io::ErrorKind::InvalidData,
+            "se conserva el tipo de error"
+        );
+        fs::remove_dir_all(&dir)
     }
 }

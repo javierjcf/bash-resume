@@ -8,6 +8,7 @@ use std::path::{Path, PathBuf};
 use serde::{Deserialize, Serialize};
 
 use crate::parser::parse_file;
+use crate::with_path;
 
 /// Estado de ejecución. El formato JSON es compatible con la versión Python (D4).
 #[derive(Debug, Default, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -41,7 +42,7 @@ impl State {
                 State::default()
             }),
             Err(e) if e.kind() == io::ErrorKind::NotFound => State::default(),
-            Err(e) => return Err(e),
+            Err(e) => return Err(with_path(path)(e)),
         };
         state.path = path.to_path_buf();
         state.save()?;
@@ -49,9 +50,14 @@ impl State {
     }
 
     /// Escribe el estado en su `state.json`.
+    ///
+    /// Se escribe en `state.json.tmp` y se renombra: renombrar es atómico, así que si el proceso
+    /// muere a mitad, `state.json` sigue siendo el anterior (nunca queda a medias).
     pub fn save(&self) -> io::Result<()> {
         let json = serde_json::to_string_pretty(self)?;
-        fs::write(&self.path, json + "\n")
+        let tmp = self.path.with_extension("json.tmp");
+        fs::write(&tmp, json + "\n").map_err(with_path(&tmp))?;
+        fs::rename(&tmp, &self.path).map_err(with_path(&self.path))
     }
 
     /// Guarda la posición del siguiente comando (línea 1-based) y escribe el estado.
@@ -200,6 +206,10 @@ mod tests {
         state.save()?;
 
         assert_eq!(State::load(&path)?, state);
+        assert!(
+            !dir.join("state.json.tmp").exists(),
+            "el temporal se renombra, no se queda"
+        );
         fs::remove_dir_all(&dir)
     }
 

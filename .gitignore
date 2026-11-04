@@ -6,5 +6,6 @@
 
 # Ficheros de ejecución locales
 state.json
+state.json.tmp
 migration.log
 /steps/

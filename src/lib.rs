@@ -13,3 +13,13 @@ pub mod state;
 
 #[cfg(test)]
 mod testutil;
+
+use std::io;
+use std::path::Path;
+
+/// Añade la ruta al mensaje de un error de E/S, para que se sepa qué fichero falló.
+///
+/// Uso: `fs::read_to_string(path).map_err(with_path(path))?`.
+pub(crate) fn with_path(path: &Path) -> impl FnOnce(io::Error) -> io::Error + '_ {
+    move |e| io::Error::new(e.kind(), format!("{}: {e}", path.display()))
+}

@@ -4,6 +4,8 @@ use std::fs::{File, OpenOptions};
 use std::io::{self, IsTerminal, Write};
 use std::path::Path;
 
+use crate::with_path;
+
 const RESET: &str = "\x1b[0m";
 const BLUE: &str = "\x1b[34m";
 
@@ -67,7 +69,11 @@ pub struct Logger {
 impl Logger {
     /// Abre (o crea) el fichero de log en modo append.
     pub fn open(path: &Path) -> io::Result<Self> {
-        let file = OpenOptions::new().create(true).append(true).open(path)?;
+        let file = OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(path)
+            .map_err(with_path(path))?;
         Ok(Self {
             file,
             source: None,
