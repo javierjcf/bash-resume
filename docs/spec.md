@@ -86,6 +86,8 @@ El formato es **compatible con la versión Python**:
 - Si no existe, se crea con todo a `null`. Si está corrupto, se avisa y se recrea. Si le faltan claves, se completan con `null`.
 - Se guarda **en cada cambio**.
 - **Válido** si: `current_file`, `last_line_index` y `last_command` tienen valor; el fichero existe; la línea existe, y su texto (sin espacios al inicio ni al final) coincide con `last_command`.
+- **[cambio]** `last_line_index = 0` no es válido (en Python, `lines[0 - 1]` apuntaba a la última línea).
+- Rust escribe el JSON con 2 espacios de sangría y Python con 4; los dos leen cualquiera.
 
 ## 7. Flujo interactivo
 

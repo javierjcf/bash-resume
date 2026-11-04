@@ -80,6 +80,7 @@ pub fn parse_file(path: &Path) -> io::Result<Vec<Line>> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::testutil::temp_dir;
 
     #[test]
     fn classifies_each_kind() {
@@ -120,14 +121,6 @@ mod tests {
         let line = Line::new("  ls -la ");
         assert_eq!(line.kind, Kind::Cmd);
         assert_eq!(line.text, "  ls -la ");
-    }
-
-    /// Crea un directorio temporal vacío y único para cada test (se ejecutan en paralelo).
-    fn temp_dir(name: &str) -> io::Result<std::path::PathBuf> {
-        let dir = std::env::temp_dir().join(format!("stepwise-{name}-{}", std::process::id()));
-        let _ = fs::remove_dir_all(&dir);
-        fs::create_dir_all(&dir)?;
-        Ok(dir)
     }
 
     #[test]

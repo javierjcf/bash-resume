@@ -133,3 +133,49 @@ Rust Book: <https://doc.rust-lang.org/book/> (abreviado **RB**, por ejemplo RB 7
 
 **Broken pipe**
 - `cargo run | head` hace que `println!` entre en pánico al cerrarse la tubería (`Broken pipe`). Es el comportamiento estándar de Rust (en Python sería un `BrokenPipeError`). No afecta al uso normal.
+
+---
+
+## T4 — `state`: state.json
+
+**serde** (<https://serde.rs>)
+- `#[derive(Serialize, Deserialize)]` genera la conversión del struct a JSON y de JSON al struct. serde define el *qué*; `serde_json` es el formato concreto.
+- `#[serde(default)]` en el struct: las claves que faltan toman el valor de `Default` (`None` en los `Option`). Las claves desconocidas se ignoran.
+- `#[serde(skip)]` en un campo: ni se escribe ni se lee (`path`).
+- `Option<T>` ↔ `null`. `usize` solo acepta enteros ≥ 0: un número negativo sería un JSON "corrupto".
+- `serde_json::from_str::<State>(&text)` devuelve `Result`; `to_string_pretty(&state)` da un JSON con sangría.
+
+**`impl` y los tres tipos de `self`** (RB 5.3)
+| Firma | Qué recibe | Python | Ejemplo |
+|---|---|---|---|
+| `fn load(path) -> Self` | nada (función asociada) | `@classmethod` / constructor | `State::load(&p)` |
+| `fn save(&self)` | préstamo de **lectura** | `def save(self)` | solo lee los campos |
+| `fn f(&mut self)` | préstamo de **escritura** | `def f(self)` que modifica | cambiar campos |
+| `fn f(self)` | se **queda** con el valor | — | consume el objeto |
+- Python no distingue: cualquier método puede modificar `self`. En Rust, la firma lo dice y el compilador lo vigila: asignar en `&self` da `E0594`.
+- `let mut state = ...`: las variables son inmutables por defecto. Sin `mut`, `state.path = ...` no compila.
+
+**`Option` sin mover: `as_ref` / `as_deref`**
+- Con `&self` solo tienes un préstamo, así que no puedes *sacar* (mover) un `String` de dentro: es el error `E0507` (*cannot move out of … behind a shared reference*).
+- `self.current_file.as_ref()` → `Option<&String>` (préstamo del contenido). `.as_deref()` → `Option<&str>`. El compilador sugiere `.clone()`, que también funciona, pero copia.
+- `Option<usize>` no tiene ese problema porque `usize` es `Copy`.
+
+**`?` también con `Option`** (RB 9.2)
+- En una función que devuelve `Option`, `x?` sale con `None` si `x` es `None`. `position_matches` encadena 6 comprobaciones sin un solo `if`.
+- `.ok()` convierte `Result` en `Option` (descarta el error). `lines.get(i)` devuelve `Option` en vez de entrar en pánico como `lines[i]`.
+- `index.checked_sub(1)` → `None` si sería negativo: los `usize` no pueden ser < 0 (en Python, `-1` es un índice válido, que era el bug).
+
+**`match` sobre errores, con guardas**
+- `Err(e) if e.kind() == io::ErrorKind::NotFound => …`: distinguir "no existe" (normal) de cualquier otro error (se propaga).
+- `?` convierte errores con `From`: `serde_json::Error` se convierte en `io::Error`, así que `?` funciona en una función `io::Result`.
+
+**`impl Display` (trait propio)** (RB 10.2)
+- Implementar `fmt::Display` para `State` hace que funcionen `println!("{state}")` y `state.to_string()`. `Debug` es para el programador; `Display` es para el usuario y nunca se deriva.
+- `writeln!(f, ...)` escribe en el `Formatter`; `{label:<24}` alinea a 24 caracteres.
+
+**Struct update syntax**
+- `State { current_file: Some(..), ..State::default() }`: el resto de campos se toman de otro valor. Útil en tests.
+
+**Módulo de utilidades de test**
+- `#[cfg(test)] mod testutil;` en `lib.rs` + `pub(crate) fn temp_dir`: `pub(crate)` = visible en todo el crate pero no fuera. Evita duplicar helpers.
+- `r#"..."#` (*raw string*): no hace falta escapar las comillas, ideal para JSON.

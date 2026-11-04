@@ -9,7 +9,7 @@ Cada tarea deja el proyecto **compilando y con los tests en verde**. Las referen
 | T1 | [x] | `parser`: clasificar líneas |
 | T2 | [x] | `parser`: listar ficheros y leerlos |
 | T3 | [x] | `cli` con clap |
-| T4 | [ ] | `state`: state.json |
+| T4 | [x] | `state`: state.json |
 | T5 | [ ] | `log`: fichero + consola |
 | T6 | [ ] | `exec` simple (sin PTY) |
 | T7 | [ ] | `runner`: recorrido de pasos |
@@ -43,7 +43,7 @@ Cada tarea deja el proyecto **compilando y con los tests en verde**. Las referen
 - **Rust:** macros `derive`, atributos, `Option`.
 
 ### T4 — `state`: state.json (§6)
-- **Hace:** `struct State` con serde; `load` (crea, repara o recrea si está corrupto), `save`, `is_valid` y `summary`.
+- **Hace:** `struct State` con serde; `load` (crea, repara o recrea si está corrupto), `save`, `is_valid` y el resumen (`impl Display`).
 - **Aceptación:** tests de JSON corrupto, claves que faltan, `is_valid`, y lectura de un `state.json` generado por la versión Python.
 - **Rust:** `impl`, `&self` frente a `&mut self`, serde (`Serialize`/`Deserialize`, `#[serde(default)]`), `Option<T>`, manejo de errores.
 
