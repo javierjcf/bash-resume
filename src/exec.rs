@@ -40,7 +40,11 @@ fn sigint() -> Option<&'static Sigint> {
         .as_ref()
 }
 
-/// Ejecuta `cmd` con `sh -c` dentro de `workdir` y devuelve si terminó bien.
+/// Opciones estrictas de bash (D10): `-e` para al primer fallo dentro de la línea, `-u` da error si
+/// se usa una variable sin definir y `-o pipefail` hace fallar una tubería si falla cualquiera de sus partes.
+const BASH_OPTIONS: [&str; 4] = ["-e", "-u", "-o", "pipefail"];
+
+/// Ejecuta `cmd` con `bash -euo pipefail -c` dentro de `workdir` y devuelve si terminó bien.
 ///
 /// La salida del comando va directamente a la terminal (stdio heredado).
 pub fn execute(cmd: &str, workdir: &Path, log: &Logger) -> bool {
@@ -54,7 +58,8 @@ pub fn execute(cmd: &str, workdir: &Path, log: &Logger) -> bool {
         s.terminate.store(false, Ordering::SeqCst);
     }
 
-    let status = Command::new("sh")
+    let status = Command::new("bash")
+        .args(BASH_OPTIONS)
         .arg("-c")
         .arg(cmd)
         .current_dir(workdir)
@@ -160,6 +165,55 @@ mod tests {
     fn missing_workdir_is_a_failure() -> io::Result<()> {
         let (dir, log) = setup("exec-nodir")?;
         assert!(!execute("true", &dir.join("no-existe"), &log));
+        fs::remove_dir_all(&dir)
+    }
+
+    #[test]
+    fn pipeline_fails_if_any_part_fails() -> io::Result<()> {
+        let (dir, log) = setup("exec-pipefail")?;
+        assert!(
+            !execute("false | true", &dir, &log),
+            "pipefail: con sh daría éxito"
+        );
+        assert!(execute("true | true", &dir, &log));
+        fs::remove_dir_all(&dir)
+    }
+
+    #[test]
+    fn unset_variable_is_an_error() -> io::Result<()> {
+        let (dir, log) = setup("exec-nounset")?;
+        assert!(!execute(
+            "echo \"$VARIABLE_QUE_NO_EXISTE_XYZ\" > /dev/null",
+            &dir,
+            &log
+        ));
+        assert!(execute(
+            "echo \"${VARIABLE_QUE_NO_EXISTE_XYZ:-por_defecto}\" > /dev/null",
+            &dir,
+            &log
+        ));
+        fs::remove_dir_all(&dir)
+    }
+
+    #[test]
+    fn errexit_stops_inside_the_line() -> io::Result<()> {
+        let (dir, log) = setup("exec-errexit")?;
+        assert!(!execute("false; touch hecho", &dir, &log));
+        assert!(
+            !dir.join("hecho").exists(),
+            "-e para en el primer fallo de la línea"
+        );
+        fs::remove_dir_all(&dir)
+    }
+
+    #[test]
+    fn bash_syntax_is_available() -> io::Result<()> {
+        let (dir, log) = setup("exec-bashisms")?;
+        assert!(execute(
+            "[[ -d . ]] && arr=(a b) && test \"${arr[1]}\" = b",
+            &dir,
+            &log
+        ));
         fs::remove_dir_all(&dir)
     }
 

@@ -43,7 +43,13 @@ o desde cualquier punto elegido en un menú interactivo.
 
 ## 4. Ejecución de un comando
 
-- Se ejecuta como `sh -c "<línea>"` en `execution_path`. Cada línea es un proceso nuevo, así que un `cd` no afecta a la siguiente.
+- Se ejecuta como `bash -euo pipefail -c "<línea>"` en `execution_path`. Cada línea es un proceso nuevo, así que un `cd` no afecta a la siguiente.
+- **[cambio]** En Python era `sh -c` (`shell=True`). Ahora es bash en modo estricto (D10):
+  - se puede usar sintaxis de bash (`[[ ]]`, arrays, `{a,b}`, `<(…)`, `source`…);
+  - `-e`: si una parte de la línea falla (`a; b`), se para ahí y la línea cuenta como fallo;
+  - `-u`: usar una variable sin definir es un error (para un valor por defecto: `${VAR:-valor}`);
+  - `-o pipefail`: `a | b` falla si falla `a`, no solo si falla `b`.
+  Para aceptar un fallo concreto: `cmd || true`.
 - **[cambio]** No se hace `chdir` en el propio programa: cada comando se lanza con ese directorio de trabajo (D8). El comando ve lo mismo.
 - Si el comando no se puede lanzar (por ejemplo, el directorio no existe), cuenta como fallo.
 - El comando **hereda la terminal**: su salida aparece en tiempo real con sus colores y barras de progreso, y puede leer del teclado (prompts de `sudo`, `[y/N]`…). **[cambio]** En Python se usaba un PTY y los prompts no funcionaban.

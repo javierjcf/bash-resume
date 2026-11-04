@@ -97,3 +97,18 @@ medio. Además, con `--logfile` (salida vacía) habría dado un fallo real por b
 (colores y prompts funcionan). Si un paso concreto debe aceptar un código, se dice en el propio paso:
 `cmd || true`. Se elimina la dependencia `rustix`; `signal-hook` se mantiene solo para Ctrl+C (T10).
 **Alternativas.** PTY para todo (como Python); PTY solo para comandos con `--stop-after-init`.
+
+## D10 — Los comandos se ejecutan con `bash -euo pipefail`
+
+**Contexto.** Python usaba `sh -c` (`shell=True`). `/bin/sh` es distinto en cada sistema (dash en
+Debian/Ubuntu, bash en Arch, ash en Alpine): un paso con sintaxis de bash puede funcionar en un portátil
+y fallar en el servidor. Además, con `sh` el código de una tubería es el del último comando:
+`psql < dump.sql | tee log` "funciona" aunque `psql` falle.
+**Decisión.** `bash -e -u -o pipefail -c "<línea>"`: el mismo comportamiento en todas partes, como si se
+escribiera a mano en una terminal con el "modo estricto" de bash. `-e` para dentro de la línea al primer
+fallo, `-u` convierte las variables sin definir en error y `pipefail` hace fallar las tuberías rotas.
+**Consecuencias.** Requiere bash en la máquina donde corre stepwise (no en los contenedores: docker
+ejecuta dentro lo suyo). Pasos que usaran variables sin definir o tuberías con fallos "tolerados" ahora
+fallan: es intencionado; se aceptan explícitamente con `${VAR:-}` o `|| true`.
+**Alternativas.** `sh` (paridad con Python); shell configurable (`--shell` o `#!` por fichero): más
+flexible, pero más complejo.
