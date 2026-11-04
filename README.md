@@ -179,3 +179,7 @@ cargo fmt
 - Documentación: [comportamiento](docs/spec.md) · [decisiones](docs/decisions.md) ·
   [arquitectura](docs/architecture.md) · [tareas](docs/tasks.md) · [ideas](docs/ideas.md) · [comandos](docs/cheatsheet.md) ·
   [flujo de trabajo](docs/README.md).
+
+## Licencia
+
+[GPL-3.0-or-later](LICENSE), la misma que [pyBashResume](https://github.com/Comunitea/pyBashResume), del que deriva.
