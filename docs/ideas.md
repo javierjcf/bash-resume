@@ -29,11 +29,58 @@ Nada de esto está decidido: si se hace una, pasa a [tasks.md](tasks.md), con su
 | Idea | Qué resuelve | Esfuerzo |
 |---|---|---|
 | **Relanzar sin preguntar: `-y/--yes` y `-o/--once`** | `-y` continúa desde el estado guardado sin preguntar; `-o` ejecuta un solo comando sin preguntar. Si el estado no es válido o falta una ruta, **error** (código 1) en vez de abrir el menú o preguntar: sin terminal no hay a quién preguntar. Tras arreglar un fallo basta con `stepwise -y`, y vale para ejecuciones desatendidas. Encaje: dos flags en `cli.rs`, un atajo en `app::run` antes de `choose_action` y `pick_dir` sin preguntar cuando hay flag. ~40 líneas y tests | Bajo |
+| **Pantalla única: resumen + menú en la TUI** (ver detalle abajo) | Sustituye la pregunta de texto `Y/M/O/N` por la TUI abierta directamente en la línea guardada: se ve el contexto y se decide con una tecla | Bajo-medio |
 | **Tiempos por comando, por fichero y total** | Ya se registra `Tiempo de ejecución` de cada comando (`exec.rs`). Faltaría el tiempo de cada fichero al salir de él y el total de la ejecución al terminar, por el logger (pantalla y `migration.log`). Si termina con éxito el último fichero, un resumen con la tabla por fichero y el total. Encaje: `Instant` en `runner.rs` alrededor de cada fichero y de `run_steps`, reutilizando `format_duration`. **Limitación:** son tiempos de *esta* ejecución. Si hubo un fallo y se reanudó, el resumen no cubre lo anterior y no es representativo; es útil sobre todo con una migración ya ensayada que va de principio a fin. **Pendiente de decidir:** acumularlos entre reanudaciones (¿en `state.json`, o en un fichero aparte del home?), poniéndolos a cero al empezar desde el principio. Relacionada con *Historial de ejecución* y *Progreso* | Bajo (sin acumular) / Medio (acumulando) |
 | **`[C] Continuar tras la parada`** en la pregunta inicial cuando el estado está en una línea `#.` | Quita la rareza de la parada sin cambiar el comportamiento por defecto (no hace falta ir al menú) | Muy bajo |
 | **Expandir `~`** en las rutas que se escriben en las preguntas | Hoy `~/migr` da "Ruta inválida" (el shell solo expande `~` en los argumentos, no en lo que se teclea) | Muy bajo |
 | **Progreso**: `[12/40]` en el log y en el resumen | Saber cuánto queda en una migración larga | Bajo |
 | **Guardar una copia del estado corrupto** (`state.json.corrupto`) antes de recrearlo | Hoy se pierde la posición sin rastro; con la copia se puede recuperar a mano | Muy bajo |
+
+### Detalle: pantalla única (resumen + menú en la TUI)
+
+Hoy hay dos interfaces para lo mismo (decidir desde qué línea ejecutar): la pregunta de texto
+`[Y/S] Continuar | [M] Menú | [O] Una vez | [N] Salir` y, con `M`, el menú de ratatui. La propuesta es que
+**el resumen y el menú sean la misma pantalla**: al arrancar se abre la TUI con el cursor ya en la línea
+guardada.
+
+```
+┌ stepwise ─────────────────────────────────────────────────────────────────┐
+│ Workdir: /opt/odoo/doodba-20     Pasos: ~/migr/steps     ● Estado válido    │
+├ Ficheros ───────────┬ 02-migrar ────────────────────────────────────────────┤
+│   01-preparar       │  [001] #> MIGRANDO                                    │
+│ > ● 02-migrar       │  [002] docker compose down || true                    │
+│   03-limpiar        │> [003] docker compose run --rm odoo --update all ...  │
+│                     │  [004] #. Revisar la BBDD                             │
+├─────────────────────┴───────────────────────────────────────────────────────┤
+│ ▶ 02-migrar:3 → docker compose run --rm odoo --update all --stop-after-init │
+│ [Enter] continuar  [o] solo esta  [↑↓] elegir otra  [Tab] ficheros  [q] salir│
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+- **Cabecera:** workdir, carpeta de pasos y estado (`● válido` en verde o `⚠ no válido: elige una línea`
+  en amarillo). Es la información del resumen de texto de hoy.
+- **Centro:** el menú actual, con la línea guardada seleccionada y en amarillo.
+- **Pie:** la línea que se va a ejecutar, bien visible, y las teclas resaltadas.
+- **Teclas:** `Enter` sin moverse = el `Y` de hoy; `o` = `O`; moverse y `Enter` = lo que hoy es `M` + elegir;
+  `q` = `N`. Desaparecen la pregunta `Y/M/O/N` y la tecla `M`.
+
+**Ventajas**
+- Una sola interfaz coherente, en vez de mezclar texto y TUI.
+- Se ve el **contexto**: las líneas de alrededor y lo que viene después (por ejemplo, un `#.` dos líneas más abajo).
+- Con estado inválido no hay paso intermedio (`[M] Abrir menú`): se elige directamente.
+- `Menu` ya tiene la posición guardada, el estado y los paneles: es sobre todo dibujo (cabecera y pie) y
+  cambiar `app` para abrir la TUI en lugar de preguntar. ~60–100 líneas.
+
+**A tener en cuenta**
+- **Sin terminal no hay TUI.** Hoy el flujo de texto funciona por tubería (`printf 'y\n' |`). Va de la mano de
+  `-y`/`-o`: TUI cuando estás delante y flags cuando no (o mantener la pregunta de texto solo como plan B).
+  Conviene hacerla junto con los flags o justo después.
+- **La pantalla alternativa no deja rastro en el scroll** de la terminal (hoy se puede subir y ver el resumen
+  confirmado). Se compensa registrando en el log la elección: `▶ Ejecutando desde 02-migrar:3 (continuar)`.
+- Se pierde la confirmación en dos pasos (ver el resumen y luego confirmar): basta un `Enter`. Con la línea
+  destacada en el pie parece suficiente; si se quisiera más seguridad, pedir `Enter` dos veces solo cuando
+  se ha movido el cursor de la línea guardada.
+- Cambia el comportamiento de la spec (§7.1 y §7.2) y la decisión D5: habría que reflejarlo en `decisions.md`.
 
 ## Útiles
 
