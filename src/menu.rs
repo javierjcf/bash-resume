@@ -2,10 +2,16 @@
 //!
 //! Este módulo separa la lógica (estado y teclas, testeable sin terminal) del dibujo con ratatui.
 
-use std::io;
+use std::io::{self, IsTerminal};
 use std::path::Path;
 
-use crate::parser::{Line, list_step_files, parse_file};
+use ratatui::crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
+use ratatui::layout::{Constraint, Layout};
+use ratatui::style::{Color, Modifier, Style};
+use ratatui::widgets::{Block, List, ListItem, ListState, Paragraph};
+use ratatui::{DefaultTerminal, Frame};
+
+use crate::parser::{Kind, Line, list_step_files, parse_file};
 use crate::runner::Mode;
 use crate::state::State;
 
@@ -157,6 +163,176 @@ impl Menu {
     }
 }
 
+/// Abre el menú en la terminal y devuelve la línea elegida, o `None` si se sale sin elegir.
+pub fn choose(steps_dir: &Path, state: &State) -> io::Result<Option<Choice>> {
+    if !io::stdin().is_terminal() || !io::stdout().is_terminal() {
+        return Err(io::Error::other(
+            "el menú necesita una terminal interactiva",
+        ));
+    }
+    let mut menu = Menu::load(steps_dir, state)?;
+    let mut terminal = ratatui::try_init()?;
+    let result = event_loop(&mut menu, &mut terminal);
+    // Se restaura la terminal pase lo que pase en el bucle (el panic lo cubre el hook de ratatui).
+    ratatui::try_restore()?;
+    result
+}
+
+/// Dibuja, espera una tecla y la aplica, hasta que se elige una línea o se sale.
+fn event_loop(menu: &mut Menu, terminal: &mut DefaultTerminal) -> io::Result<Option<Choice>> {
+    loop {
+        terminal.draw(|frame| render(menu, frame))?;
+        let Event::Key(event) = event::read()? else {
+            continue; // cambio de tamaño, ratón…: basta con redibujar
+        };
+        let Some(key) = key_from(event) else {
+            continue;
+        };
+        match menu.handle_key(key) {
+            Outcome::Stay => {}
+            Outcome::Run(choice) => return Ok(Some(choice)),
+            Outcome::Quit => return Ok(None),
+        }
+    }
+}
+
+/// Dibuja el menú: ficheros a la izquierda, líneas del fichero seleccionado a la derecha y una barra abajo.
+///
+/// Solo lee el estado del menú; no decide nada (eso es `handle_key`).
+fn render(menu: &Menu, frame: &mut Frame) {
+    let [main, bar] =
+        Layout::vertical([Constraint::Min(1), Constraint::Length(1)]).areas(frame.area());
+    let [files_area, lines_area] =
+        Layout::horizontal([Constraint::Percentage(30), Constraint::Percentage(70)]).areas(main);
+
+    // Panel de ficheros: `●` en el del estado guardado.
+    let files: Vec<ListItem> = menu
+        .files
+        .iter()
+        .enumerate()
+        .map(|(i, f)| {
+            let mark = if menu.saved.is_some_and(|(file, _)| file == i) {
+                "● "
+            } else {
+                "  "
+            };
+            ListItem::new(format!("{mark}{}", f.name))
+        })
+        .collect();
+    let focused = menu.panel == Panel::Files;
+    let files = List::new(files)
+        .block(panel(" Ficheros ", focused))
+        .highlight_style(highlight(focused))
+        .highlight_symbol("> ");
+    let mut files_state = ListState::default().with_selected(Some(menu.file));
+    frame.render_stateful_widget(files, files_area, &mut files_state);
+
+    // Panel de líneas del fichero seleccionado, coloreadas por tipo.
+    let lines = menu.current_lines();
+    let items: Vec<ListItem> = lines
+        .iter()
+        .enumerate()
+        .map(|(i, line)| {
+            let saved = menu.saved == Some((menu.file, i));
+            ListItem::new(format!("[{:03}] {}", i + 1, line.text))
+                .style(line_style(line.kind, saved))
+        })
+        .collect();
+    let title = match menu.files.get(menu.file) {
+        Some(f) if f.lines.is_empty() => format!(" {} (vacío) ", f.name),
+        Some(f) => format!(" {} ", f.name),
+        None => " (no hay ficheros de pasos) ".to_string(),
+    };
+    let focused = menu.panel == Panel::Lines;
+    let lines_list = List::new(items)
+        .block(panel(&title, focused))
+        .highlight_style(highlight(focused))
+        .highlight_symbol("> ");
+    let mut lines_state =
+        ListState::default().with_selected((!lines.is_empty()).then_some(menu.line));
+    frame.render_stateful_widget(lines_list, lines_area, &mut lines_state);
+
+    frame.render_widget(Paragraph::new(status_text(menu)), bar);
+}
+
+/// Marco de un panel; el que tiene el foco, en cian.
+fn panel(title: &str, focused: bool) -> Block<'_> {
+    let color = if focused {
+        Color::Cyan
+    } else {
+        Color::DarkGray
+    };
+    Block::bordered()
+        .title(title)
+        .border_style(Style::new().fg(color))
+}
+
+/// Estilo de la fila seleccionada: llamativo en el panel con el foco, discreto en el otro.
+fn highlight(focused: bool) -> Style {
+    if focused {
+        Style::new()
+            .fg(Color::Black)
+            .bg(Color::Cyan)
+            .add_modifier(Modifier::BOLD)
+    } else {
+        Style::new().add_modifier(Modifier::REVERSED)
+    }
+}
+
+/// Color de una línea según su tipo; la guardada en el estado, en amarillo.
+fn line_style(kind: Kind, saved: bool) -> Style {
+    if saved {
+        return Style::new().fg(Color::Yellow).add_modifier(Modifier::BOLD);
+    }
+    match kind {
+        Kind::Log => Style::new().fg(Color::Green),
+        Kind::Stop => Style::new().fg(Color::Red),
+        Kind::Comment => Style::new().fg(Color::DarkGray),
+        Kind::Cmd | Kind::Empty => Style::new(),
+    }
+}
+
+/// Barra inferior: la línea seleccionada y la ayuda de teclas.
+fn status_text(menu: &Menu) -> String {
+    let help = "↑↓/jk mover · Tab panel · Enter/y ejecutar · o una vez · q salir";
+    match (
+        menu.files.get(menu.file),
+        menu.current_lines().get(menu.line),
+    ) {
+        (Some(file), Some(line)) => format!(
+            " {}:{} → {}  │  {help}",
+            file.name,
+            menu.line + 1,
+            line.text
+        ),
+        _ => format!(" {help}"),
+    }
+}
+
+/// Traduce una tecla de crossterm a nuestra `Key`. Las que el menú no usa dan `None`.
+///
+/// En modo raw, Ctrl+C no genera una señal: llega como una tecla más, así que se trata como `q`.
+fn key_from(event: KeyEvent) -> Option<Key> {
+    if event.kind != KeyEventKind::Press {
+        return None;
+    }
+    if event.modifiers.contains(KeyModifiers::CONTROL) && event.code == KeyCode::Char('c') {
+        return Some(Key::Char('q'));
+    }
+    let key = match event.code {
+        KeyCode::Up => Key::Up,
+        KeyCode::Down => Key::Down,
+        KeyCode::Left => Key::Left,
+        KeyCode::Right => Key::Right,
+        KeyCode::Tab => Key::Tab,
+        KeyCode::Enter => Key::Enter,
+        KeyCode::Esc => Key::Esc,
+        KeyCode::Char(c) => Key::Char(c.to_ascii_lowercase()),
+        _ => return None,
+    };
+    Some(key)
+}
+
 /// Posición del estado (fichero, línea 0-based) si el fichero existe y la línea tiene el mismo comando.
 fn saved_position(files: &[StepFile], state: &State) -> Option<(usize, usize)> {
     let name = state.current_file.as_ref()?;
@@ -181,6 +357,8 @@ fn prev(i: usize, len: usize) -> usize {
 mod tests {
     use super::*;
     use crate::testutil::temp_dir;
+    use ratatui::Terminal;
+    use ratatui::backend::TestBackend;
     use std::fs;
 
     /// Fichero en memoria a partir de su texto.
@@ -336,6 +514,60 @@ mod tests {
         ];
         assert_eq!(press(&mut menu, &keys), Outcome::Stay);
         assert_eq!(press(&mut menu, &[Key::Char('q')]), Outcome::Quit);
+    }
+
+    /// Dibuja el menú en una terminal falsa de `width`×`height` y devuelve la pantalla como texto.
+    fn draw(menu: &Menu, width: u16, height: u16) -> String {
+        let mut terminal = Terminal::new(TestBackend::new(width, height)).unwrap();
+        terminal.draw(|frame| render(menu, frame)).unwrap();
+        terminal.backend().to_string()
+    }
+
+    #[test]
+    fn render_shows_files_lines_and_status_bar() {
+        let menu = Menu::new(files(), &state_at("03-c", 2, "#. parada"));
+        let screen = draw(&menu, 100, 8);
+        assert!(
+            screen.contains("● 03-c"),
+            "marca del fichero guardado:\n{screen}"
+        );
+        assert!(
+            screen.contains("[002] #. parada"),
+            "líneas numeradas:\n{screen}"
+        );
+        assert!(
+            screen.contains("03-c:2 → #. parada"),
+            "barra inferior:\n{screen}"
+        );
+        assert!(screen.contains("02-vacio"), "{screen}");
+    }
+
+    #[test]
+    fn render_without_files_does_not_panic() {
+        let screen = draw(&Menu::new(Vec::new(), &State::default()), 60, 6);
+        assert!(screen.contains("no hay ficheros"), "{screen}");
+    }
+
+    #[test]
+    fn translates_crossterm_keys() {
+        let press = |code, mods| key_from(KeyEvent::new(code, mods));
+        assert_eq!(press(KeyCode::Down, KeyModifiers::NONE), Some(Key::Down));
+        assert_eq!(
+            press(KeyCode::Char('Y'), KeyModifiers::SHIFT),
+            Some(Key::Char('y'))
+        );
+        assert_eq!(
+            press(KeyCode::Char('c'), KeyModifiers::CONTROL),
+            Some(Key::Char('q'))
+        );
+        assert_eq!(press(KeyCode::F(1), KeyModifiers::NONE), None);
+        let release =
+            KeyEvent::new_with_kind(KeyCode::Enter, KeyModifiers::NONE, KeyEventKind::Release);
+        assert_eq!(
+            key_from(release),
+            None,
+            "solo cuenta al pulsar, no al soltar"
+        );
     }
 
     #[test]

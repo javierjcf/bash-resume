@@ -108,6 +108,13 @@ printf 'n\n' | cargo run -- -H demo    # responder por tubería (útil para scri
 Para "arreglar" el fallo, cambia `false` por `true` en `demo/steps/02-fallar` y responde `[Y]`:
 seguirá hasta el `#.`, y la siguiente vez se vuelve a parar ahí. Después, `git checkout demo/steps`.
 
+**Menú (T11–T12)**
+```bash
+cargo run -- -H demo                   # responde `m`: se abre el menú
+```
+`↑↓`/`jk` mover · `Tab`/`←→` cambiar de panel · `Enter`/`y`/`s` ejecutar desde la línea · `o` solo esa línea ·
+`Esc` volver · `q` (o Ctrl+C) salir. Sin terminal (`printf 'm\n' | cargo run -- -H demo`) da un error claro.
+
 **Ctrl+C (T10)**
 ```bash
 printf 'echo a\nsleep 30\necho b\n' > demo/steps/03-esperar   # paso largo de prueba

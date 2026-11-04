@@ -399,3 +399,35 @@ Rust Book: <https://doc.rust-lang.org/book/> (abreviado **RB**, por ejemplo RB 7
 - `bool::then_some(x)`: `Some(x)` si es `true`, `None` si no. `(text == command).then_some((file, line))`.
 - `Option::and_then` encadena operaciones que pueden no dar resultado: `current_file.as_ref().and_then(|n| files.iter().position(...))`.
 - `keys.iter().map(|&k| menu.handle_key(k)).last()`: los iteradores son perezosos, pero `.last()` los consume enteros, así que se pulsan todas las teclas. `|&k|` desestructura la referencia (como `Key` es `Copy`, se copia).
+
+---
+
+## T12 — `menu`: dibujo con ratatui
+
+**Ratatui en una frase:** en cada fotograma, una función describe la pantalla entera a partir del estado (*modo inmediato*); ratatui compara con el fotograma anterior y envía a la terminal solo lo que cambió.
+- `Layout::vertical([...]).areas(rect)` → `[Rect; N]` (desestructurado con `let [a, b] = ...`). `Constraint::Min`, `Length`, `Percentage`.
+- Widgets: `Block::bordered().title(..)` (marco), `List` + `ListItem` (con `ListState` para la fila seleccionada y el scroll), `Paragraph` (texto). Se pintan con `frame.render_widget` / `render_stateful_widget`.
+- `Style::new().fg(Color::Green).add_modifier(Modifier::BOLD)`: colores y estilos, encadenando métodos.
+- `ratatui::try_init()` activa el **modo raw** (las teclas llegan una a una, sin eco) y la **pantalla alternativa**, e instala un *panic hook* que restaura la terminal si el programa revienta. `try_restore()` la deja como estaba.
+- `crossterm::event::read()` bloquea hasta el siguiente evento (tecla, cambio de tamaño, ratón…); `let Event::Key(e) = event::read()? else { continue };` ignora lo que no es una tecla.
+
+**Modo raw y Ctrl+C**
+- En modo raw la terminal no convierte Ctrl+C en SIGINT: llega como `KeyCode::Char('c')` con `KeyModifiers::CONTROL`. Hay que tratarlo a mano (aquí, como `q`).
+- `KeyEventKind::Press` / `Release`: algunas terminales envían también el "soltar"; se ignora para no procesar cada tecla dos veces.
+
+**Closures como parámetro: `impl FnMut(...)`** (RB 13.1)
+- `choose_action(..., mut open_menu: impl FnMut(&Path, &State) -> io::Result<Option<Choice>>)`: recibe "algo que se puede llamar" con esa firma. En el programa se pasa la función `menu::choose`; en los tests, una closure falsa `|_, _| Ok(menu.clone())` que no abre ninguna terminal.
+- `Fn` (solo lee lo que captura), `FnMut` (puede modificarlo), `FnOnce` (se puede llamar una vez, porque consume lo capturado). `FnMut` es el más flexible para algo que se llama varias veces.
+- Es *inyección de dependencias* sin frameworks: la parte con E/S (la terminal) se pasa desde fuera, y la lógica se testea con un sustituto.
+
+**Testear el dibujo: `TestBackend`**
+- `Terminal::new(TestBackend::new(80, 8))` = terminal falsa en memoria. Tras `terminal.draw(...)`, `terminal.backend().to_string()` devuelve la pantalla como texto: se comprueba con `contains`.
+- Así se testea el *contenido* (qué textos y en qué paneles), aunque no los colores ni la experiencia real: eso se prueba a mano (o con un PTY, como en la verificación).
+
+**Lifetimes en tipos: `Block<'_>`**
+- `fn panel(title: &str, ...) -> Block<'_>`: `Block` guarda una referencia al título. `'_` significa "el lifetime que deduzcas": el `Block` devuelto no puede vivir más que `title`.
+
+**Otros**
+- `Option::is_some_and(|(file, _)| file == i)`: `true` si hay valor y cumple la condición.
+- `c.to_ascii_lowercase()`: `Y` y `y` hacen lo mismo.
+- `io::Error::other("mensaje")`: crea un `io::Error` propio con un texto, para errores que no vienen del sistema.

@@ -38,9 +38,9 @@ tests/
 
 ```
 main.rs ──► cli, app
-app ──► state, runner, menu, log
+app ──► state, runner, menu (choose, pasado como closure), log
 runner ──► parser, state, exec, log
-menu ──► parser, state
+menu ──► parser, state, runner (Mode)
 exec ──► log
 parser, state, log ──► (solo std y crates externos)
 ```

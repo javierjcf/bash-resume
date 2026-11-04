@@ -6,7 +6,7 @@ use std::process::ExitCode;
 
 use crate::cli::Args;
 use crate::log::Logger;
-use crate::parser::{list_step_files, parse_file};
+use crate::menu::{self, Choice};
 use crate::runner::{Mode, Outcome, run_steps};
 use crate::state::State;
 
@@ -56,7 +56,7 @@ pub fn run(args: Args) -> io::Result<ExitCode> {
     state.steps_path = Some(steps.clone());
     state.save()?;
 
-    let action = choose_action(&mut state, &steps, &mut input, &mut output)?;
+    let action = choose_action(&mut state, &steps, &mut input, &mut output, menu::choose)?;
     // Se suelta stdin antes de ejecutar: a partir de aquí el teclado es para los comandos.
     drop(input);
 
@@ -135,11 +135,13 @@ fn pick_dir(
 /// Pregunta qué hacer hasta obtener una respuesta válida (spec §7.1).
 ///
 /// Si el estado es válido, ofrece continuar desde él; si no, obliga a elegir un punto en el menú.
+/// `open_menu` abre el menú (en el programa, `menu::choose`; en los tests, uno falso).
 fn choose_action(
     state: &mut State,
     steps: &Path,
     input: &mut impl BufRead,
     output: &mut impl Write,
+    mut open_menu: impl FnMut(&Path, &State) -> io::Result<Option<Choice>>,
 ) -> io::Result<Action> {
     loop {
         if state.is_valid(steps) {
@@ -179,29 +181,15 @@ fn choose_action(
             }
         }
 
-        // Aquí solo se llega con "M".
-        if !pick_start(state, steps, output)? {
-            return Ok(Action::Exit);
-        }
+        // Aquí solo se llega con "M". Elegir en el menú ya confirma (no se vuelve a preguntar, D5).
+        return match open_menu(steps, state)? {
+            Some(choice) => {
+                state.set_position(&choice.file, &choice.command, choice.line)?;
+                Ok(Action::Run(choice.mode))
+            }
+            None => Ok(Action::Exit),
+        };
     }
-}
-
-/// Menú provisional hasta T11–T12: sitúa el estado en la primera línea del primer fichero con contenido.
-///
-/// Devuelve `false` si no hay ninguna línea que elegir.
-fn pick_start(state: &mut State, steps: &Path, output: &mut impl Write) -> io::Result<bool> {
-    for file in list_step_files(steps)? {
-        if let Some(first) = parse_file(&steps.join(&file))?.first() {
-            writeln!(
-                output,
-                "(Menú provisional: se empieza por el principio de {file}.)"
-            )?;
-            state.set_position(&file, &first.text, 1)?;
-            return Ok(true);
-        }
-    }
-    writeln!(output, "No hay ficheros de pasos con contenido.")?;
-    Ok(false)
 }
 
 #[cfg(test)]
@@ -210,12 +198,24 @@ mod tests {
     use crate::testutil::temp_dir;
     use std::fs;
 
-    /// Ejecuta `choose_action` con `typed` como lo que escribe el usuario. Devuelve la acción y lo mostrado.
-    fn choose(state: &mut State, steps: &Path, typed: &str) -> io::Result<(Action, String)> {
+    /// Ejecuta `choose_action` con `typed` como lo que escribe el usuario y `menu` como lo que
+    /// devolvería el menú. Devuelve la acción y lo mostrado.
+    fn choose_with(
+        state: &mut State,
+        steps: &Path,
+        typed: &str,
+        menu: Option<Choice>,
+    ) -> io::Result<(Action, String)> {
         let mut input = typed.as_bytes();
         let mut output = Vec::new();
-        let action = choose_action(state, steps, &mut input, &mut output)?;
+        let fake_menu = |_: &Path, _: &State| Ok(menu.clone());
+        let action = choose_action(state, steps, &mut input, &mut output, fake_menu)?;
         Ok((action, String::from_utf8_lossy(&output).into_owned()))
+    }
+
+    /// Como `choose_with`, con un menú que sale sin elegir.
+    fn choose(state: &mut State, steps: &Path, typed: &str) -> io::Result<(Action, String)> {
+        choose_with(state, steps, typed, None)
     }
 
     /// Carpeta con `steps/01-a` y un estado (en disco) que apunta a su segunda línea.
@@ -265,15 +265,31 @@ mod tests {
 
         assert_eq!(choose(&mut state, &steps, "n\n")?.0, Action::Exit);
 
-        // "m" → menú provisional (primera línea) → estado válido → "o"
-        let (action, shown) = choose(&mut state, &steps, "y\nm\no\n")?;
-        assert!(
-            shown.contains("Use 'M' para menú"),
-            "la 'y' no vale con estado inválido: {shown}"
-        );
+        // "y" no vale con estado inválido; "m" abre el menú, que elige 01-a:1 en modo una vez.
+        let picked = Choice {
+            file: "01-a".to_string(),
+            line: 1,
+            command: "#> inicio".to_string(),
+            mode: Mode::Once,
+        };
+        let (action, shown) = choose_with(&mut state, &steps, "y\nm\n", Some(picked))?;
+        assert!(shown.contains("Use 'M' para menú"), "{shown}");
         assert_eq!(action, Action::Run(Mode::Once));
-        assert_eq!(state.last_line_index, Some(1));
+        assert_eq!(
+            state.last_line_index,
+            Some(1),
+            "la elección se guarda en el estado"
+        );
         assert_eq!(state.last_command.as_deref(), Some("#> inicio"));
+        fs::remove_dir_all(&dir)
+    }
+
+    #[test]
+    fn leaving_the_menu_without_choosing_exits() -> io::Result<()> {
+        let (dir, mut state) = project("app-menu-quit")?;
+        let (action, _) = choose(&mut state, &dir.join("steps"), "m\n")?;
+        assert_eq!(action, Action::Exit);
+        assert_eq!(state.last_line_index, Some(2), "el estado no cambia");
         fs::remove_dir_all(&dir)
     }
 

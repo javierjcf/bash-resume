@@ -99,10 +99,9 @@ El formato es **compatible con la versión Python**:
   `[Y/S] Continuar | [M] Menú | [O] Una vez | [N] Salir`.
 - **Estado inválido:** `El estado previo no es válido…` y la pregunta `[M] Abrir menú | [N] Salir`, que se repite hasta recibir una respuesta válida.
 - **[cambio]** Una respuesta no válida con estado válido vuelve a preguntar (en Python abría el menú).
-- Tras elegir en el menú se vuelve a esta pregunta, ya con el nuevo punto (en Python era una pregunta aparte, igual).
+- **[cambio]** Elegir una línea en el menú (`Enter`/`y`/`o`) ya confirma: se guarda en el estado y se ejecuta, sin volver a preguntar (D5). Salir del menú sin elegir termina sin ejecutar nada.
 - Si se cierra la entrada (Ctrl+D) en una pregunta: `❌ Error: entrada cerrada` y código 1.
 - **Código de salida:** 1 si un comando falló (o por un error de E/S); 0 en el resto de casos (terminado, parada `#.`, una vez, salir).
-- *Provisional hasta T11–T12:* `[M]` sitúa el estado en la primera línea del primer fichero con contenido.
 
 ### 7.2 Menú (TUI) **[cambio]**
 
@@ -124,6 +123,9 @@ En Python eran dos menús curses encadenados más una pregunta de confirmación.
 | `q` (en cualquier panel) / `Esc` en ficheros | salir sin ejecutar |
 
 - **[cambio]** No se puede confirmar en un fichero vacío. En Python esto provocaba un crash (`idx=None`).
+- Ctrl+C dentro del menú equivale a `q` (en modo raw no llega como señal, sino como tecla).
+- El menú usa la pantalla alternativa de la terminal: al cerrarlo, la terminal queda como estaba.
+- Necesita una terminal interactiva: si stdin o stdout no lo son (tubería, cron…), `[M]` da `❌ Error: el menú necesita una terminal interactiva` y código 1.
 
 ## 8. Log (`migration.log` en home)
 
