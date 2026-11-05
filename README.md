@@ -51,7 +51,7 @@ bash-resume /opt/odoo/doodba -s pasos
 1. La primera vez no hay estado: se abre la interfaz para elegir la línea de inicio (`Enter` para entrar en el
    fichero, `Enter` en la línea y `Enter` para confirmar).
 2. Las siguientes veces basta con `bash-resume` en esa carpeta: recuerda el directorio de trabajo y los pasos
-   y abre el popup de confirmación sobre el punto pendiente. `Enter` para continuar.
+   y abre la interfaz con el cursor sobre el punto pendiente. `Enter` y `Enter` para confirmar y continuar.
 
 ## Uso
 
@@ -72,8 +72,8 @@ proyecto, y pregunta el directorio de trabajo y la carpeta de pasos la primera v
 
 ### La interfaz
 
-Al arrancar se abre la interfaz de terminal. Si hay un punto guardado, aparece directamente el **popup de
-confirmación** con lo que se va a ejecutar; nunca se ejecuta nada sin pasar por él.
+Al arrancar se abre la interfaz de terminal con el cursor sobre el punto guardado (si lo hay). Al pulsar `Enter`
+en una línea aparece el **popup de confirmación** con lo que se va a ejecutar; nunca se ejecuta nada sin pasar por él.
 
 ```
  Workdir: /opt/odoo/doodba-20  ·  Pasos: ~/migr/steps  ·  ● estado válido
@@ -130,8 +130,9 @@ docker compose run --rm odoo --update all --stop-after-init
   - puedes usar sintaxis de bash (`[[ ]]`, arrays, `{a,b}`, `<(…)`…);
   - `a; b` se para si falla `a`, y `a | b` falla si falla cualquiera de los dos;
   - una variable sin definir es un error: usa `${VAR:-valor}` para dar un valor por defecto.
-- Los comandos usan la terminal directamente: se ven sus colores y puedes responder a sus preguntas
-  (`sudo`, `[y/N]`…).
+- Los comandos escriben directamente en la terminal (se ven sus colores), pero no reciben el teclado (stdin es `/dev/null`), para que Ctrl+C siempre los detenga,
+  incluido `docker compose run`. `sudo` sí puede pedir la contraseña. Para los comandos que preguntan, usa su
+  opción para no preguntar (`apt -y`, `--yes`…).
 - **Cualquier código de salida distinto de 0 es un fallo.**
 
 ## Qué pasa cuando…
@@ -175,7 +176,6 @@ cargo build --release --locked --target x86_64-unknown-linux-musl
 - Argumentos más cortos: `WORKDIR`, `-s/--steps` (antes `--steps-path`).
 - Todo en una interfaz de terminal: menú de dos paneles y popup de confirmación antes de ejecutar; `-y`/`-o` para saltársela.
 - Los comandos se ejecutan con `bash -euo pipefail` en vez de `sh -c` ([D10](docs/decisions.md)).
-- Los comandos pueden pedir datos por teclado (prompts de `sudo`, `[y/N]`…).
 - Ya no hay heurística para `exit 255` con `--stop-after-init`: en Odoo un 255 es siempre un error ([D9](docs/decisions.md)).
 - Código de salida 1 si falla un comando (útil en scripts).
 - Detalles completos en [docs/spec.md](docs/spec.md) (marcados con **[cambio]**).

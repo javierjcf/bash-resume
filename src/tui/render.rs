@@ -110,7 +110,7 @@ fn render_confirm(menu: &Menu, frame: &mut Frame) {
     let key = |k: &'static str| {
         Span::styled(k, Style::new().fg(Color::Cyan).add_modifier(Modifier::BOLD))
     };
-    let label = |l: &'static str| Span::styled(l, Style::new().fg(Color::DarkGray));
+    let label = |l: &'static str| Span::styled(l, Style::new().fg(Color::LightBlue));
     let text = vec![
         TextLine::from(vec![
             label("Fichero  "),
@@ -247,9 +247,12 @@ mod tests {
 
     #[test]
     fn render_shows_files_lines_and_status_bar() {
-        let mut menu = Menu::new(files(), &state_at("03-c", 2, "#. parada"));
-        press(&mut menu, &[Key::Esc]); // cerrar el popup para ver los paneles completos
+        let menu = Menu::new(files(), &state_at("03-c", 2, "#. parada"));
         let screen = draw(&menu, 100, 9);
+        assert!(
+            !screen.contains("¿Ejecutar?"),
+            "sin popup al abrir:\n{screen}"
+        );
         assert!(
             screen.contains("● 03-c"),
             "marca del fichero guardado:\n{screen}"
@@ -270,7 +273,9 @@ mod tests {
     fn render_shows_confirmation_popup() {
         let mut state = state_at("03-c", 2, "#. parada");
         state.execution_path = Some(PathBuf::from("/opt/odoo/doodba"));
-        let screen = draw(&Menu::new(files(), &state), 100, 14);
+        let mut menu = Menu::new(files(), &state);
+        press(&mut menu, &[Key::Enter]); // elegir la línea guardada abre el popup
+        let screen = draw(&menu, 100, 14);
         assert!(screen.contains("¿Ejecutar?"), "{screen}");
         assert!(
             screen.contains("▶ #. parada"),

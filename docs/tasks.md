@@ -99,6 +99,6 @@ Cada tarea deja el proyecto **compilando y con los tests en verde**. Las referen
 - **Rust:** `std::env::current_dir`, `Option<&Path>` con `match`, `io::Error::other`, `Path::exists`.
 
 ### T15 — Todo en la TUI, con confirmación en popup, y flags `-y`/`-o` (D12)
-- **Hace:** desaparece la pregunta de texto `Y/M/O/N`. La TUI se abre siempre; con estado válido, con un popup de confirmación sobre la línea guardada. Elegir una línea abre el popup y solo desde él se ejecuta. Cabecera con workdir, pasos y estado. `-y/--yes` y `-o/--once` continúan o ejecutan un comando sin abrir la TUI.
+- **Hace:** desaparece la pregunta de texto `Y/M/O/N`. La TUI se abre siempre, con el cursor sobre la línea guardada si la hay. Elegir una línea abre el popup y solo desde él se ejecuta. Cabecera con workdir, pasos y estado. `-y/--yes` y `-o/--once` continúan o ejecutan un comando sin abrir la TUI.
 - **Aceptación:** nunca se ejecuta sin pasar por el popup; `Esc` en el popup vuelve a navegar; `-y`/`-o` funcionan sin terminal y dan error con estado inválido; sin terminal y sin flags, error claro.
 - **Rust:** estado modal comprobado antes del `match`, `FnOnce` frente a `FnMut`, `Clear`, `Flex::Center`, `Paragraph` + `Wrap`, `Span`/`Line` de ratatui, `conflicts_with` de clap.

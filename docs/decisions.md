@@ -71,7 +71,7 @@ subcarpetas. Tests unitarios en cada módulo y de integración en `tests/`. Deta
 **Motivo.** El comando ve exactamente lo mismo, pero las rutas relativas de bash-resume (`--home`, `--steps`) siguen funcionando y los tests no dependen del directorio actual (que es compartido entre hilos).
 **Alternativas.** `std::env::set_current_dir` (global, como en Python).
 
-## D9 — Sin PTY ni heurística de Odoo: un 255 es un error
+## D9 — Sin PTY ni heurística de Odoo: un 255 es un error — *matizada por D14*
 
 **Contexto.** La versión Python ejecutaba cada comando dentro de un PTY para poder *leer* su salida sin
 perder los colores, y así aplicar una heurística: con `exit 255` y `--stop-after-init`, solo era error
@@ -126,7 +126,7 @@ valor por defecto `migration-steps`). Se quita el feature `env` de clap.
 una estructura por convención con `migration-steps/steps` (impone cómo organizar los pasos); variables de
 entorno para los pasos (sin valor claro hoy).
 
-## D12 — Todo en la TUI, con confirmación en un popup
+## D12 — Todo en la TUI, con confirmación en un popup — *matizada por D13*
 
 **Contexto.** Con D5, elegir una línea en el menú la ejecutaba directamente, y antes había una pregunta de texto
 (`[Y/S]…`). Un `Enter` de más podía lanzar un paso destructivo, y había dos interfaces para lo mismo.
@@ -137,3 +137,26 @@ primera vez siguen siendo de texto). Flags opcionales **`-y/--yes`** y **`-o/--o
 (continuar o un solo comando desde el estado), que tampoco necesitan terminal. Sin terminal y sin flags, error claro.
 **Alternativas.** Sección fija bajo los paneles (siempre visible, pero sin el foco claro de un modal); mantener la
 pregunta de texto como plan B sin terminal (dos interfaces que mantener).
+
+## D13 — La TUI abre sin popup, sobre la línea guardada
+
+**Contexto.** Con D12, con estado válido la TUI arrancaba con el popup ya abierto: para elegir otra línea había
+que cerrarlo antes con `Esc`, y el panel ya muestra dónde se está.
+**Decisión.** La TUI abre siempre navegando, con el cursor sobre la línea guardada (panel de líneas). El popup
+solo aparece al elegir (`Enter`), y sigue siendo el único sitio desde el que se ejecuta. El resto de D12 se mantiene.
+
+## D14 — Los comandos no reciben el teclado (stdin = `/dev/null`)
+
+**Contexto.** Con D9 los comandos heredaban toda la terminal, teclado incluido. `docker compose run` (con TTY) pone
+entonces la terminal en modo raw: Ctrl+C le llega como una tecla y no como señal, así que bash-resume no se entera.
+Odoo, además, hace `os._exit(0)` al segundo Ctrl+C (`signal_handler` en `odoo/service/server.py`, 13–18): el
+comando salía con 0, se daba por bueno y el estado avanzaba a la línea siguiente. En una migración, un
+`--update all` interrumpido no puede contar como hecho.
+**Decisión.** Cada comando recibe stdin desde `/dev/null`. La salida sigue yendo a la terminal (colores y barras de
+progreso intactos). Sin stdin de terminal, ningún comando la pone en modo raw, Ctrl+C siempre llega como señal y
+cuenta como fallo aunque el comando salga con 0. `sudo` sigue pidiendo la contraseña (la lee de `/dev/tty`).
+**Coste.** Los comandos que preguntan por stdin (`read`, un `[y/N]`) reciben fin de entrada: se usa su opción para no
+preguntar (`apt -y`, `--yes`). Es como se comportaba la versión Python, que tampoco pasaba el teclado.
+**Alternativas.** Poner `-T` en cada `docker compose run` (depende de acordarse); volver a un PTY reenviando el
+teclado (mucho código).
+

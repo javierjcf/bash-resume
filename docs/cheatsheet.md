@@ -75,7 +75,7 @@ se crean ahí y git los ignora. `demo/` es la carpeta del proyecto: se usa con `
 rm -f demo/state.json                  # empezar de cero
 cargo run -- . -s demo/steps -p demo   # sin estado → interfaz: Enter, Enter, Enter → ejecuta hasta el `false`
 echo $?                                # 1: falló un comando (0 si terminó, se paró en `#.` o salió)
-cargo run -- -p demo                   # recuerda workdir y pasos; popup de confirmación sobre el `false`
+cargo run -- -p demo                   # recuerda workdir y pasos; cursor sobre el `false`, Enter → popup
 cat demo/state.json                    # por dónde va
 tail -f demo/migration.log             # en otra terminal: el log en vivo
 ```

@@ -13,7 +13,7 @@ Nada de esto está decidido: si se hace una, pasa a [tasks.md](tasks.md), con su
 - Reanudar es fiable: la posición se guarda tras cada comando (de forma atómica), se valida contra el
   texto de la línea y el menú permite saltar a cualquier punto.
 - Un único binario estático (con musl), sin Python ni dependencias en el servidor.
-- Los comandos usan la terminal directamente: colores, barras de progreso y prompts funcionan.
+- Los comandos escriben directamente en la terminal (colores y barras de progreso), y Ctrl+C siempre los detiene.
 
 **Dónde se queda corto para el objetivo**
 - Que un fallo saque del programa es **intencionado**: imita a un script de bash y obliga a intervenir a mano.

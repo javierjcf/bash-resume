@@ -54,10 +54,11 @@ o desde cualquier punto elegido en un menú interactivo.
   Para aceptar un fallo concreto: `cmd || true`.
 - **[cambio]** No se hace `chdir` en el propio programa: cada comando se lanza con ese directorio de trabajo (D8). El comando ve lo mismo.
 - Si el comando no se puede lanzar (por ejemplo, el directorio no existe), cuenta como fallo.
-- El comando **hereda la terminal**: su salida aparece en tiempo real con sus colores y barras de progreso, y puede leer del teclado (prompts de `sudo`, `[y/N]`…). **[cambio]** En Python se usaba un PTY y los prompts no funcionaban.
+- La **salida** del comando va directamente a la terminal (stdout y stderr heredados): aparece en tiempo real con sus colores y barras de progreso. **[cambio]** En Python se usaba un PTY.
+- El comando **no recibe el teclado**: stdin es `/dev/null` (D14). Así ningún comando (por ejemplo `docker compose run` con TTY) puede poner la terminal en modo raw y quedarse con Ctrl+C. Un comando que lea de stdin recibe fin de entrada; `sudo` sigue pidiendo la contraseña porque la lee de `/dev/tty`.
 - **¿Es un error?** `exit 0` → éxito; cualquier otro código (o morir por una señal) → fallo.
   **[cambio]** Se elimina la heurística de Python para `exit 255` + `--stop-after-init`: en Odoo un 255 es siempre un error real (D9). Para aceptar un código en un paso concreto: `cmd || true`.
-- **Ctrl+C** durante un comando: la terminal se lo envía al comando, que se detiene; bash-resume **no** se detiene, registra `⛔ Ctrl+C detectado…` y lo trata como un fallo (estado en esa línea + `onerror`, código 1), igual que Python. Cuenta como fallo aunque el comando termine con 0 al recibirlo.
+- **Ctrl+C** durante un comando: la terminal se lo envía al comando, que se detiene; bash-resume **no** se detiene, registra `⛔ Ctrl+C detectado…` y lo trata como un fallo (estado en esa línea + `onerror`, código 1), igual que Python. Cuenta como fallo aunque el comando termine con 0 al recibirlo (Odoo hace `os._exit(0)` al segundo Ctrl+C).
 - Al terminar se registra en el log `Tiempo de ejecución: h:m:s` (sin ceros a la izquierda).
 
 ## 5. Recorrido de los pasos (`run_steps`)
@@ -106,8 +107,8 @@ El formato es **compatible con la versión Python**:
 Tras resolver las rutas (§2), todo pasa en la TUI (D12). En Python era una pregunta de texto
 (`[Y/S] Continuar | [M] Menú | [O] Una vez | [N] Salir`) y, con `M`, menús curses.
 
-- **Estado válido:** se abre la TUI con el **popup de confirmación** ya abierto sobre la línea guardada
-  (el equivalente al resumen de Python).
+- **Estado válido:** se abre la TUI con el cursor sobre la línea guardada (panel de líneas), sin popup: ya se ve
+  dónde está. `Enter` abre el **popup de confirmación** (el equivalente al resumen de Python).
 - **Estado inválido:** se abre la TUI navegando, con el aviso `⚠ estado no válido: elige una línea` en la cabecera.
 - **Nunca se ejecuta nada sin pasar por el popup.** Salir sin elegir termina sin ejecutar nada.
 - **Flags para saltarse la TUI** (opcionales): `-y/--yes` continúa desde la posición guardada y `-o/--once` ejecuta
@@ -141,7 +142,7 @@ Tras resolver las rutas (§2), todo pasa en la TUI (D12). En Python era una preg
 - **Panel derecho:** líneas del fichero seleccionado, con preview en vivo, número `[001]` y color por tipo (`log` verde, `stop` rojo, `comment` gris). La línea del estado guardado sale en amarillo.
 - **Barra inferior:** `fichero:línea → comando` y la ayuda de teclas.
 - **Popup de confirmación** (modal, centrado): fichero y línea, comando destacado, directorio de trabajo, carpeta de pasos y teclas. Mientras está abierto, solo responde a sus teclas.
-- Al abrirse, con estado válido: popup abierto, foco en el panel de líneas y cursor en la línea guardada. Sin estado válido: foco en ficheros, con el del estado seleccionado si existe (como en Python).
+- Al abrirse, con estado válido: sin popup, foco en el panel de líneas y cursor en la línea guardada. Sin estado válido: foco en ficheros, con el del estado seleccionado si existe (como en Python).
 - Los ficheros se cargan todos al abrir el menú.
 
 **Navegando**

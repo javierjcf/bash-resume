@@ -14,8 +14,9 @@ misma funcionalidad y un único binario sin dependencias.
 
 - **Ficheros de pasos**: se ejecutan en orden alfabético, línea a línea. Cada línea es un proceso independiente
   que empieza siempre en el directorio de trabajo. Marcas: `#>` mensaje al log, `#.` parada y `#` comentario.
-- **Reanudar**: `state.json` guarda por dónde va tras cada comando. Al relanzar se abre la interfaz con un popup
-  de confirmación sobre el punto pendiente: continuar, ejecutar un solo comando, elegir otra línea o salir.
+- **Reanudar**: `state.json` guarda por dónde va tras cada comando. Al relanzar se abre la interfaz con el cursor
+  sobre el punto pendiente; `Enter` abre un popup de confirmación: continuar, ejecutar un solo comando, elegir
+  otra línea o salir.
 - **Interfaz de terminal**: ficheros y líneas en dos paneles, coloreadas por tipo, con el punto guardado resaltado.
   Nunca se ejecuta nada sin confirmarlo en el popup.
 - **`-y/--yes` y `-o/--once`** para continuar o ejecutar un solo comando sin abrir la interfaz.
@@ -25,8 +26,9 @@ misma funcionalidad y un único binario sin dependencias.
 - **Log** en `migration.log` y en pantalla, con el fichero de pasos en curso y la duración de cada comando.
 - **Instalación con una línea** (`curl … | sh`): descarga la release, comprueba el checksum y deja el binario
   estático en `~/.local/bin` (o donde se indique).
-- Los comandos usan la terminal directamente: se ven sus colores y barras de progreso y se puede responder a sus
-  preguntas (`sudo`, `[y/N]`…).
+- Los comandos escriben directamente en la terminal (se ven sus colores y barras de progreso), pero no reciben el
+  teclado: así Ctrl+C siempre los detiene y nunca se da por bueno un comando interrumpido. `sudo` puede seguir
+  pidiendo la contraseña.
 
 ### Diferencias con pyBashResume
 
@@ -41,7 +43,6 @@ misma funcionalidad y un único binario sin dependencias.
   las tuberías fallan si falla cualquier parte y una variable sin definir es un error.
 - **Sin heurística para `exit 255` con `--stop-after-init`**: en Odoo, un 255 es siempre un error real, así que
   cualquier código distinto de 0 cuenta como fallo.
-- **Los comandos pueden pedir datos por teclado**: en Python no se podía responder a sus preguntas.
 - **Todo en una interfaz de terminal**, en lugar de una pregunta de texto y dos menús curses seguidos; se mantiene
   el flujo de confirmar antes de ejecutar.
 - **Más robusto**: `state.json` se guarda de forma atómica (un corte nunca lo deja a medias), los errores indican

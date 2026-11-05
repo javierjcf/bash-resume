@@ -87,7 +87,8 @@ impl Menu {
     /// Abre el menú sobre `files`, con el fichero del estado seleccionado y,
     /// si su línea sigue teniendo el mismo comando, también esa línea (como en Python).
     ///
-    /// Con una posición guardada válida, arranca con el popup de confirmación abierto sobre ella.
+    /// Con una posición guardada válida, arranca en el panel de líneas con el cursor sobre ella; el popup de
+    /// confirmación solo se abre al elegir (`Enter`).
     pub fn new(files: Vec<StepFile>, state: &State) -> Self {
         let file = state
             .current_file
@@ -105,7 +106,7 @@ impl Menu {
             file: 0,
             line: 0,
             saved,
-            confirm: saved.is_some(),
+            confirm: false,
             workdir: state.execution_path.clone(),
             steps_dir: state.steps_path.clone(),
         };
@@ -212,13 +213,17 @@ mod tests {
     use std::fs;
 
     #[test]
-    fn opens_with_confirmation_at_saved_position() {
+    fn opens_at_saved_line_and_enter_asks_for_confirmation() {
         let mut menu = Menu::new(files(), &state_at("03-c", 2, "#. parada"));
         assert_eq!((menu.file, menu.line, menu.saved), (2, 1, Some((2, 1))));
-        assert!(
-            menu.confirm,
-            "con estado válido, arranca con el popup abierto"
+        assert_eq!(menu.panel, Panel::Lines, "arranca en el panel de líneas");
+        assert!(!menu.confirm, "sin popup al abrir");
+        assert_eq!(
+            press(&mut menu, &[Key::Enter]),
+            Outcome::Stay,
+            "Enter abre el popup"
         );
+        assert!(menu.confirm);
         assert_eq!(
             press(&mut menu, &[Key::Enter]),
             run("03-c", 2, "#. parada", Mode::All)
@@ -297,6 +302,7 @@ mod tests {
     #[test]
     fn popup_ignores_navigation_and_q_quits() {
         let mut menu = Menu::new(files(), &state_at("01-a", 2, "echo a"));
+        press(&mut menu, &[Key::Enter]); // abrir el popup
         assert_eq!(press(&mut menu, &[Key::Down, Key::Tab]), Outcome::Stay);
         assert_eq!(
             (menu.line, menu.panel, menu.confirm),
