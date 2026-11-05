@@ -5,13 +5,7 @@ las versiones siguen [SemVer](https://semver.org/lang/es/).
 
 ## [Unreleased]
 
-### Cambiado
-- **El directorio actual es el proyecto**: `bash-resume` a secas usa `state.json`, `migration.log` y `onerror`
-  de la carpeta donde estás. Si no hay `state.json`, avisa y crea el proyecto.
-- `-p/--project DIR` sustituye a `-H/--home` y desaparece la variable `BASH_RESUME_HOME`.
-- Ya no hay carpeta de pasos por defecto (`migration-steps`): se indica la primera vez y queda guardada.
-
-## [0.1.0] - 2026-11-04
+## [0.1.0] - 2026-11-05
 
 Primera versión: reescritura en Rust de [pyBashResume](https://github.com/Comunitea/pyBashResume), con su
 misma funcionalidad y un único binario sin dependencias.
@@ -35,9 +29,12 @@ misma funcionalidad y un único binario sin dependencias.
 
 ### Diferencias con pyBashResume
 
-- **Una carpeta por proyecto** (`-H/--home` o `BASH_RESUME_HOME`) para `state.json`, `migration.log` y `onerror`,
-  en lugar de guardarlos junto al script.
-- **Argumentos más cortos**: `bash-resume [WORKDIR] [-s|--steps DIR] [-H|--home DIR]` (antes `--steps-path`).
+- **El directorio actual es el proyecto**: `state.json`, `migration.log` y `onerror` viven en la carpeta desde la
+  que se lanza (o la indicada con `-p/--project`), en lugar de junto al script. Si no hay `state.json`, se avisa y
+  se crea el proyecto.
+- **Sin estructura impuesta**: la carpeta de pasos y el directorio de trabajo se indican la primera vez (por
+  argumento o respondiendo a la pregunta) y quedan guardados; ya no hay `migration-steps` por defecto.
+- **Argumentos más cortos**: `bash-resume [WORKDIR] [-s|--steps DIR] [-p|--project DIR]` (antes `--steps-path`).
   Un argumento antiguo muestra una sugerencia.
 - **Los comandos se ejecutan con `bash -euo pipefail`** en vez de `sh -c`: misma sintaxis en todas las distribuciones,
   las tuberías fallan si falla cualquier parte y una variable sin definir es un error.
