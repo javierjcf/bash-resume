@@ -4,7 +4,7 @@ use std::path::Path;
 use std::process::{Command, Stdio};
 use std::time::{Duration, Instant};
 
-use super::signals;
+use super::{pty, signals};
 use crate::log::Logger;
 
 /// Opciones estrictas de bash (D10): `-e` para al primer fallo dentro de la línea, `-u` da error si
@@ -13,9 +13,9 @@ const BASH_OPTIONS: [&str; 4] = ["-e", "-u", "-o", "pipefail"];
 
 /// Ejecuta `cmd` con `bash -euo pipefail -c` dentro de `workdir` y devuelve si terminó bien.
 ///
-/// La salida del comando va directamente a la terminal (stdout y stderr heredados), pero **no** el teclado:
-/// stdin es `/dev/null` (D14). Así ningún comando puede poner la terminal en modo raw (como `docker compose run`
-/// con TTY) y Ctrl+C siempre llega como señal a bash-resume, que lo trata como fallo aunque el comando salga con 0.
+/// La salida del comando va directamente a la terminal (stdout y stderr heredados), pero **no** el teclado: stdin
+/// es una terminal falsa vacía (D15), así que `docker run -it` funciona, nadie puede poner la terminal real en modo
+/// raw y Ctrl+C siempre llega como señal a bash-resume, que lo trata como fallo aunque el comando salga con 0.
 pub fn execute(cmd: &str, workdir: &Path, log: &Logger) -> bool {
     log.info(&format!("Ejecutando comando: {cmd}"));
     let start = Instant::now();
@@ -23,14 +23,26 @@ pub fn execute(cmd: &str, workdir: &Path, log: &Logger) -> bool {
     // Mientras dura el comando, Ctrl+C lo detiene a él (la terminal le envía SIGINT), pero no a bash-resume.
     signals::begin_command();
 
+    // stdin: una terminal falsa vacía; si no se puede crear (por ejemplo, sin /dev/ptmx), /dev/null.
+    let (stdin, master) = match pty::empty_tty() {
+        Ok((master, slave)) => (Stdio::from(slave), Some(master)),
+        Err(e) => {
+            log.warn(&format!(
+                "No se pudo crear la terminal falsa ({e}): stdin será /dev/null"
+            ));
+            (Stdio::null(), None)
+        }
+    };
+
     let status = Command::new("bash")
         .args(BASH_OPTIONS)
         .arg("-c")
         .arg(cmd)
         .current_dir(workdir)
-        .stdin(Stdio::null())
+        .stdin(stdin)
         .status();
 
+    drop(master); // el comando ya terminó: se cierra la terminal falsa
     let interrupted = signals::end_command();
 
     let ok = match status {
@@ -178,15 +190,14 @@ mod tests {
     }
 
     #[test]
-    fn stdin_is_dev_null() -> io::Result<()> {
+    fn stdin_is_an_empty_terminal() -> io::Result<()> {
         let (dir, log) = setup("exec-stdin")?;
-        // `cat` termina al instante con stdin vacío; con el teclado heredado se quedaría esperando.
+        assert!(
+            execute("test -t 0", &dir, &log),
+            "stdin es una terminal (docker -it la exige)"
+        );
+        // `cat` termina al instante: la terminal le da fin de entrada en vez de esperar al teclado.
         assert!(execute("cat", &dir, &log));
-        assert!(execute(
-            "[ \"$(readlink /proc/self/fd/0)\" = /dev/null ]",
-            &dir,
-            &log
-        ));
         fs::remove_dir_all(&dir)
     }
 

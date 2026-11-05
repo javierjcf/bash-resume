@@ -5,6 +5,12 @@ las versiones siguen [SemVer](https://semver.org/lang/es/).
 
 ## [Unreleased]
 
+### Corregido
+
+- `docker run -it` fallaba siempre (*stdin is not a terminal*) desde que los comandos recibían stdin desde
+  `/dev/null`. Ahora stdin es una terminal falsa vacía: `docker run -it` y `docker compose run` funcionan, y
+  Ctrl+C sigue deteniendo el comando sin avanzar el estado (D15).
+
 ## [0.1.0] - 2026-11-05
 
 Primera versión: reescritura en Rust de [pyBashResume](https://github.com/Comunitea/pyBashResume), con su

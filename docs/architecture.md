@@ -34,6 +34,7 @@ src/
 ├── exec.rs          ── ejecutar comandos (expone `execute`)
 ├── exec/
 │   ├── command.rs   lanzar bash -euo pipefail, código de salida y tiempo
+│   ├── pty.rs       terminal falsa vacía para el stdin de los comandos (D15)
 │   └── signals.rs   Ctrl+C durante un comando (OnceLock + atómicos)
 ├── tui.rs           ── interfaz de terminal (expone `choose` y `Choice`): bucle de eventos
 ├── tui/

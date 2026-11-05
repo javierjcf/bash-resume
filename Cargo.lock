@@ -89,6 +89,7 @@ dependencies = [
  "chrono",
  "clap",
  "ratatui",
+ "rustix",
  "serde",
  "serde_json",
  "signal-hook",

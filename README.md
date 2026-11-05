@@ -130,8 +130,8 @@ docker compose run --rm odoo --update all --stop-after-init
   - puedes usar sintaxis de bash (`[[ ]]`, arrays, `{a,b}`, `<(…)`…);
   - `a; b` se para si falla `a`, y `a | b` falla si falla cualquiera de los dos;
   - una variable sin definir es un error: usa `${VAR:-valor}` para dar un valor por defecto.
-- Los comandos escriben directamente en la terminal (se ven sus colores), pero no reciben el teclado (stdin es `/dev/null`), para que Ctrl+C siempre los detenga,
-  incluido `docker compose run`. `sudo` sí puede pedir la contraseña. Para los comandos que preguntan, usa su
+- Los comandos escriben directamente en la terminal (se ven sus colores), pero no reciben el teclado (stdin es una terminal falsa vacía), para que Ctrl+C siempre los
+  detenga, incluido `docker compose run`. `docker run -it` funciona. `sudo` sí puede pedir la contraseña. Para los comandos que preguntan, usa su
   opción para no preguntar (`apt -y`, `--yes`…).
 - **Cualquier código de salida distinto de 0 es un fallo.**
 

@@ -71,7 +71,7 @@ subcarpetas. Tests unitarios en cada módulo y de integración en `tests/`. Deta
 **Motivo.** El comando ve exactamente lo mismo, pero las rutas relativas de bash-resume (`--home`, `--steps`) siguen funcionando y los tests no dependen del directorio actual (que es compartido entre hilos).
 **Alternativas.** `std::env::set_current_dir` (global, como en Python).
 
-## D9 — Sin PTY ni heurística de Odoo: un 255 es un error — *matizada por D14*
+## D9 — Sin PTY ni heurística de Odoo: un 255 es un error — *matizada por D14 y D15*
 
 **Contexto.** La versión Python ejecutaba cada comando dentro de un PTY para poder *leer* su salida sin
 perder los colores, y así aplicar una heurística: con `exit 255` y `--stop-after-init`, solo era error
@@ -145,7 +145,7 @@ que cerrarlo antes con `Esc`, y el panel ya muestra dónde se está.
 **Decisión.** La TUI abre siempre navegando, con el cursor sobre la línea guardada (panel de líneas). El popup
 solo aparece al elegir (`Enter`), y sigue siendo el único sitio desde el que se ejecuta. El resto de D12 se mantiene.
 
-## D14 — Los comandos no reciben el teclado (stdin = `/dev/null`)
+## D14 — Los comandos no reciben el teclado (stdin = `/dev/null`) — *Sustituida por D15*
 
 **Contexto.** Con D9 los comandos heredaban toda la terminal, teclado incluido. `docker compose run` (con TTY) pone
 entonces la terminal en modo raw: Ctrl+C le llega como una tecla y no como señal, así que bash-resume no se entera.
@@ -160,3 +160,19 @@ preguntar (`apt -y`, `--yes`). Es como se comportaba la versión Python, que tam
 **Alternativas.** Poner `-T` en cada `docker compose run` (depende de acordarse); volver a un PTY reenviando el
 teclado (mucho código).
 
+## D15 — stdin de los comandos: una terminal falsa (PTY) vacía
+
+**Contexto.** Con D14 (stdin = `/dev/null`), `docker run -it` falla siempre: *cannot attach stdin to a TTY-enabled
+container because stdin is not a terminal*, y en algunas versiones también `docker compose run`. Se mantiene el
+objetivo de D14: Ctrl+C mata el comando y el estado no avanza, sea un `docker run` o no.
+**Decisión.** Cada comando recibe como stdin el extremo esclavo de una PTY nueva (`exec/pty.rs`, con `rustix::pty`),
+que no está conectada al teclado. Al crearla se escribe un `^D` en el maestro: quien lea stdin recibe fin de entrada.
+El maestro sigue abierto hasta que acaba el comando (si se cierra, deja de ser una terminal). stdout y stderr siguen
+heredados. docker ve una terminal; si la pone en modo raw, lo hace en la falsa, no en la del usuario, así que Ctrl+C
+sigue llegando como señal a bash-resume y cuenta como fallo aunque el comando salga con 0. Si no se puede crear la
+PTY (sin `/dev/ptmx`), se usa `/dev/null` como en D14.
+**Coste.** Vuelve `rustix` como dependencia directa (`pty`, `fs`), aunque ya lo era de forma transitiva por crossterm,
+en la misma versión. Con `-it`, la TTY del contenedor hace eco del `^D`: aparece un `^@` delante de su salida. Los
+comandos que preguntan por stdin siguen recibiendo fin de entrada (`apt -y`, `--yes`); `sudo` lee de `/dev/tty`.
+**Alternativas.** `/dev/null` (D14, rompe `docker run -it`); no escribir el `^D` (un `cat` o un `read` se quedarían
+esperando para siempre); cerrar el maestro (da EOF, pero la PTY deja de ser una terminal y `-it` vuelve a fallar).
