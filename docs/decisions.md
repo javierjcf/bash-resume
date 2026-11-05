@@ -187,8 +187,10 @@ ficheros de pasos se editan a menudo durante el desarrollo de una migración.
 borrar o renombrar no hace perder nada; una línea cambiada es un comando nuevo. Los totales se calculan recorriendo
 los ficheros actuales y buscando cada comando, sin comparar diferencias ni limpiar entradas viejas. Nunca se vacía:
 se sobrescribe comando a comando, y para empezar de cero se borra el fichero. Un fallo al leerlo o guardarlo solo
-avisa: los tiempos nunca detienen la ejecución. En el log no se añade ninguna línea por comando (`[n/N]` y "quedan"
-van en `Ejecutando comando`), solo el total de cada fichero y el resumen final; la salida de los comandos sigue sin
+avisa: los tiempos nunca detienen la ejecución. En el log, cada comando ocupa dos líneas, la de inicio (con `[n/N]` y "quedan") y
+la de resultado (`✅ [n/N] 00:00:07 comando` o `❌ … (exit 1)`), cada una completa por sí misma para poder usar
+`grep`, en vez de las cuatro de Python; además, el total de
+cada fichero y el resumen final; la salida de los comandos sigue sin
 entrar en `migration.log`. Formato `HH:MM:SS` en todo (comandos, ficheros, totales y estimaciones): exacto y sin redondeos.
 **Coste.** Un mismo comando en dos sitios comparte el tiempo (para estimar basta). El tiempo de esta ejecución y el
 del resumen pueden diferir (el resumen suma la última vez buena de cada comando, aunque fuera en otra ejecución).

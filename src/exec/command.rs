@@ -20,7 +20,7 @@ pub struct Execution {
     pub elapsed: Duration,
 }
 
-/// Por dónde va la ejecución, para la línea `Ejecutando comando` (spec §4).
+/// Por dónde va la ejecución, para la línea `⏳` de inicio de cada comando (spec §8).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Progress {
     /// Número del comando (1-based) entre todos los de los ficheros de pasos.
@@ -36,22 +36,15 @@ pub struct Progress {
 /// es una terminal falsa vacía (D15), así que `docker run -it` funciona, nadie puede poner la terminal real en modo
 /// raw y Ctrl+C siempre llega como señal a bash-resume, que lo trata como fallo aunque el comando salga con 0.
 ///
-/// Con `progress`, la línea del log es `▶ [13/40] Ejecutando comando: … (quedan ~01:20:00)`; sin él (por ejemplo, en
-/// `onerror`), `Ejecutando comando: …`.
+/// En el log, dos líneas por comando, cada una completa por sí misma (spec §8): al empezar,
+/// `⏳ [13/40] comando   (quedan ~01:20:00)`, y al terminar, `✅ [13/40] 00:00:07 comando` o
+/// `❌ [13/40] 00:00:51 comando   (exit 1)`. Sin `progress` (como en `onerror`), sin `[n/N]` ni estimación.
 pub fn execute(cmd: &str, workdir: &Path, log: &Logger, progress: Option<&Progress>) -> Execution {
-    log.info(&match progress {
-        Some(p) => {
-            let remaining = p
-                .remaining
-                .as_ref()
-                .map_or(String::new(), |r| format!("   (quedan {r})"));
-            format!(
-                "▶ [{}/{}] Ejecutando comando: {cmd}{remaining}",
-                p.number, p.total
-            )
-        }
-        None => format!("Ejecutando comando: {cmd}"),
-    });
+    let number = progress.map_or(String::new(), |p| format!("[{}/{}] ", p.number, p.total));
+    let remaining = progress
+        .and_then(|p| p.remaining.as_ref())
+        .map_or(String::new(), |r| format!("   (quedan {r})"));
+    log.info(&format!("⏳ {number}{cmd}{remaining}"));
     let start = Instant::now();
 
     // Mientras dura el comando, Ctrl+C lo detiene a él (la terminal le envía SIGINT), pero no a bash-resume.
@@ -79,40 +72,31 @@ pub fn execute(cmd: &str, workdir: &Path, log: &Logger, progress: Option<&Progre
     drop(master); // el comando ya terminó: se cierra la terminal falsa
     let interrupted = signals::end_command();
 
+    let elapsed = start.elapsed();
+    let done = format!("{number}{} {cmd}", format_duration(elapsed));
     let ok = match status {
-        // Un comando interrumpido es un fallo aunque haya terminado con 0 (como en Python).
+        // Un comando interrumpido es un fallo aunque haya terminado con 0 (Odoo hace `os._exit(0)` al segundo Ctrl+C).
         _ if interrupted => {
-            log.warn("⛔ Ctrl+C detectado: comando interrumpido");
-            log.error(&format!("Comando fallido (interrumpido con Ctrl+C): {cmd}"));
+            log.warn(&format!("⛔ {done}   (Ctrl+C)"));
             false
         }
         Ok(status) if status.success() => {
-            log.info("🔚 Proceso finalizado correctamente (exit code: 0)");
-            log.info(&format!(
-                "✅ Comando completado correctamente (exit code 0): {cmd}"
-            ));
+            log.info(&format!("✅ {done}"));
             true
         }
         Ok(status) => {
             // `code()` es `None` si el proceso murió por una señal (por ejemplo, kill -9).
-            let code = status.code().map_or(status.to_string(), |c| c.to_string());
-            log.warn(&format!(
-                "⚠️ Proceso finalizado con código de salida no cero: {code}"
-            ));
-            log.error(&format!("Comando fallido (exit code {code}): {cmd}"));
+            let why = status
+                .code()
+                .map_or(status.to_string(), |c| format!("exit {c}"));
+            log.error(&format!("❌ {done}   ({why})"));
             false
         }
         Err(e) => {
-            log.error(&format!("No se pudo lanzar el comando ({e}): {cmd}"));
+            log.error(&format!("❌ {done}   (no se pudo lanzar: {e})"));
             false
         }
     };
-
-    let elapsed = start.elapsed();
-    log.info(&format!(
-        "Tiempo de ejecución: {}",
-        format_duration(elapsed)
-    ));
     Execution { ok, elapsed }
 }
 
@@ -144,12 +128,17 @@ mod tests {
         assert!(!execute("exit 3", &dir, &log, None).ok);
         let content = fs::read_to_string(dir.join("migration.log"))?;
         assert!(
-            content.contains("Comando fallido (exit code 3): exit 3"),
+            content.contains("INFO:                         ⏳ exit 3\n"),
             "{content}"
         );
         assert!(
-            content.contains("Tiempo de ejecución: 00:00:00"),
+            content.contains("ERROR:                        ❌ 00:00:00 exit 3   (exit 3)\n"),
             "{content}"
+        );
+        assert_eq!(
+            content.lines().count(),
+            2,
+            "dos líneas por comando:\n{content}"
         );
         fs::remove_dir_all(&dir)
     }

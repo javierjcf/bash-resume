@@ -76,7 +76,7 @@ Al arrancar se abre la interfaz de terminal con el cursor sobre el punto guardad
 en una línea aparece el **popup de confirmación** con lo que se va a ejecutar; nunca se ejecuta nada sin pasar por él.
 
 ```
- Workdir: /opt/odoo/doodba-20  ·  Pasos: ~/migr/steps  ·  ● estado válido  ·  Total ~02:10:00
+ Workdir: /opt/odoo/doodba-20  ·  Pasos: ~/migr/steps  ·  ● estado válido  ·  🕒 Total ~02:10:00
 ┌ Ficheros ─────┬ 02-migrar ──────────────────────────────────────────┐
 │   01-prep     │  [001] #> MIGRANDO                                  │
 │ > ● 02-migr ┌─ ¿Ejecutar? ────────────────────────────────────────┐ │
@@ -99,7 +99,7 @@ en una línea aparece el **popup de confirmación** con lo que se va a ejecutar;
 | `q` / Ctrl+C | Sale sin ejecutar nada |
 
 **En los paneles** (ficheros a la izquierda, sus líneas a la derecha, coloreadas por tipo; `●` marca el
-fichero del estado guardado y su línea sale en amarillo; en azul y en columna a la izquierda, lo que tardó cada comando y cada fichero la
+fichero del estado guardado y su línea sale en amarillo; en azul y con 🕒, lo que tardó cada comando y cada fichero la
 última vez):
 
 | Tecla | Qué hace |
@@ -119,16 +119,17 @@ Cada comando que termina bien guarda lo que tardó en `times.json` (en el proyec
 (por ejemplo, en producción tras un ensayo) sabes cuánto queda:
 
 ```
-▶ [13/40] Ejecutando comando: docker compose run --rm odoo --update all --stop-after-init   (quedan ~01:20:00)
-… salida de Odoo …
-Tiempo de ejecución: 00:47:02
-⏱ Fichero 02-migrar: 01:05:30
+⏳ [13/40] docker compose run --rm odoo --update all --stop-after-init   (quedan ~01:20:00)
+… salida de Odoo (solo en pantalla, no en migration.log) …
+✅ [13/40] 00:47:02 docker compose run --rm odoo --update all --stop-after-init
+                              ← o «❌ … (exit 1)» si falla, «(Ctrl+C)» si lo paras
+🕒 Fichero 02-migrar: 01:05:30
 …
-⏱ Resumen de tiempos:          ← solo cuando se completan todos los pasos
+🕒 Resumen de tiempos:          ← solo cuando se completan todos los pasos
    01-preparar   00:12:40
    02-migrar     01:05:30
    Total         01:18:10
-⏱ Esta ejecución: 00:52:10
+🕒 Esta ejecución: 00:52:10
 ```
 
 - `[13/40]` es el número de comando entre todos los de los ficheros de pasos.

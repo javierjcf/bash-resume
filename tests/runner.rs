@@ -245,14 +245,11 @@ fn successful_commands_are_timed_and_summarized() -> io::Result<()> {
         assert!(times.contains(&format!("\"{cmd}\": 0")), "{times}");
     }
     let log = p.read("migration.log");
-    assert!(
-        log.contains("▶ [2/3] Ejecutando comando: echo b >> out"),
-        "{log}"
-    );
-    assert!(log.contains("⏱ Fichero 01-a: 00:00:00"), "{log}");
-    assert!(log.contains("⏱ Resumen de tiempos:"), "{log}");
+    assert!(log.contains("⏳ [2/3] echo b >> out"), "{log}");
+    assert!(log.contains("🕒 Fichero 01-a: 00:00:00"), "{log}");
+    assert!(log.contains("🕒 Resumen de tiempos:"), "{log}");
     assert!(log.contains("   Total   00:00:00"), "{log}");
-    assert!(log.contains("⏱ Esta ejecución: 00:00:00"), "{log}");
+    assert!(log.contains("🕒 Esta ejecución: 00:00:00"), "{log}");
     Ok(())
 }
 
@@ -270,21 +267,19 @@ fn estimate_uses_saved_times_and_counts_missing_ones() -> io::Result<()> {
 
     let log = p.read("migration.log");
     assert!(
-        log.contains(
-            "▶ [1/3] Ejecutando comando: echo a >> out   (quedan ~00:03:00, 1 sin tiempo)"
-        ),
+        log.contains("⏳ [1/3] echo a >> out   (quedan ~00:03:00, 1 sin tiempo)"),
         "{log}"
     );
     assert!(
-        log.contains("▶ [3/3] Ejecutando comando: echo c >> out\n"),
+        log.contains("⏳ [3/3] echo c >> out\n"),
         "sin datos, sin paréntesis:\n{log}"
     );
     // Solo se añade texto a las líneas que ya había: ninguna línea extra por comando.
     let per_command = log.lines().filter(|l| l.contains("[01-a]")).count();
     assert_eq!(
         per_command,
-        3 * 4 + 1,
-        "Ejecutando + 2 de resultado + Tiempo por comando, y el total del fichero:\n{log}"
+        3 * 2 + 1,
+        "inicio y resultado por comando, y el total del fichero:\n{log}"
     );
     Ok(())
 }
@@ -297,7 +292,7 @@ fn failed_command_keeps_its_previous_time() -> io::Result<()> {
 
     assert!(p.read("times.json").contains("\"false\": 99"));
     let log = p.read("migration.log");
-    assert!(log.contains("⏱ Esta ejecución"), "{log}");
+    assert!(log.contains("🕒 Esta ejecución"), "{log}");
     assert!(
         !log.contains("Resumen de tiempos"),
         "solo al terminar todo:\n{log}"
@@ -333,7 +328,7 @@ fn command_output_never_goes_to_the_log() -> io::Result<()> {
     let p = Project::new("times-output", &[("01-a", "echo SAL\"\"IDA\n")])?;
     assert_eq!(p.run(Mode::All)?, Outcome::Finished);
     let log = p.read("migration.log");
-    assert!(log.contains("Ejecutando comando: echo SAL\"\"IDA"), "{log}");
+    assert!(log.contains("⏳ [1/1] echo SAL\"\"IDA"), "{log}");
     assert!(
         !log.contains("SALIDA"),
         "la salida del comando va solo a la pantalla:\n{log}"

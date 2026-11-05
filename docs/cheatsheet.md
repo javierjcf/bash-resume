@@ -95,11 +95,11 @@ hasta el `#.`, y la siguiente vez se vuelve a parar ahí. Después, `git checkou
 printf 'echo a\nsleep 30\necho b\n' > demo/steps/03-esperar   # paso largo de prueba
 cargo run -- -p demo                   # Esc → baja a 03-esperar → Enter → Enter → Enter
 ```
-Pulsa **Ctrl+C** durante el `sleep 30`: el log muestra `⛔ Ctrl+C detectado`, se ejecuta `onerror`, el
+Pulsa **Ctrl+C** durante el `sleep 30`: el log muestra `⛔ … (Ctrl+C)`, se ejecuta `onerror`, el
 estado queda en el `sleep` y `echo $?` da 1. En la interfaz, Ctrl+C sale sin hacer nada.
 Al terminar: `rm demo/steps/03-esperar`.
 
-**Tiempos**: lanza dos veces el paso largo. La segunda, la línea `▶ [n/N] Ejecutando comando` dice cuánto queda, y
+**Tiempos**: lanza dos veces el paso largo. La segunda, la línea `⏳ [n/N] …` de cada comando dice cuánto queda, y
 en la interfaz el `sleep` muestra `00:00:30` y el fichero su total. Un Ctrl+C no cambia `demo/times.json`.
 
 **Casos raros**

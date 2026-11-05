@@ -54,7 +54,7 @@ pub fn run_steps(
         log_summary(steps_dir, timings, log);
     }
     log.info(&format!(
-        "⏱ Esta ejecución: {}",
+        "🕒 Esta ejecución: {}",
         format_duration(start.elapsed())
     ));
     Ok(outcome)
@@ -127,7 +127,7 @@ fn walk(
         }
         let total = timings.total(&lines);
         if total.timed + total.missing > 0 {
-            log.info(&format!("⏱ Fichero {file}: {}", show_total(total)));
+            log.info(&format!("🕒 Fichero {file}: {}", show_total(total)));
         }
     }
 
@@ -175,7 +175,7 @@ fn log_summary(steps_dir: &Path, timings: &Timings, log: &Logger) {
         .unwrap_or(0)
         .max(5);
     let mut sum = Estimate::default();
-    log.info("⏱ Resumen de tiempos:");
+    log.info("🕒 Resumen de tiempos:");
     for (name, total) in &rows {
         log.info(&format!("   {name:<width$}   {}", show_total(*total)));
         sum.known += total.known;
@@ -240,7 +240,6 @@ fn run_onerror(path: &Path, workdir: &Path, log: &mut Logger) {
         if cmd.is_empty() || cmd.starts_with('#') {
             continue;
         }
-        log.info(&format!("Ejecutando comando onerror: {cmd}"));
         execute(cmd, workdir, log, None);
     }
 }

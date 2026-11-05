@@ -8,7 +8,7 @@ las versiones siguen [SemVer](https://semver.org/lang/es/).
 ### Añadido
 
 - **Tiempos** (D16): cada comando que termina bien guarda lo que tardó en `times.json`, en el proyecto. El log
-  numera los comandos (`▶ [13/40] Ejecutando comando: …`) y dice cuánto queda según la vez anterior, en la misma
+  numera los comandos (`⏳ [13/40] …`) y dice cuánto queda según la vez anterior, en la misma
   línea. También da el tiempo de cada fichero y, al terminar todos los pasos, un resumen por fichero con el total
   (que incluye lo hecho antes de reanudar). La interfaz muestra lo que tardó cada línea y cada fichero, el total en
   la cabecera y lo que queda en el popup. Editar los pasos no hace perder tiempos: se buscan por el texto del
@@ -16,7 +16,9 @@ las versiones siguen [SemVer](https://semver.org/lang/es/).
 
 ### Cambiado
 
-- Los tiempos usan `HH:MM:SS` (`Tiempo de ejecución: 00:05:02` en vez de `0:5:2`).
+- **Log más claro**: cada comando ocupa dos líneas en vez de cuatro: `⏳ [13/40] comando` al empezar y
+  `✅ [13/40] 00:00:07 comando` o `❌ [13/40] 00:00:51 comando (exit 1)` (o `⛔ … (Ctrl+C)`) al terminar. Los mensajes quedan en columna
+  (`[fichero] INFO:` con relleno fijo) y los tiempos usan `HH:MM:SS`.
 
 ### Corregido
 

@@ -27,34 +27,24 @@ pub(super) fn render(menu: &Menu, frame: &mut Frame) {
     let [files_area, lines_area] =
         Layout::horizontal([Constraint::Percentage(30), Constraint::Percentage(70)]).areas(main);
 
-    // Panel de ficheros: `●` en el del estado guardado y, si hay tiempos, una columna con el de cada fichero.
-    let totals: Vec<Option<Duration>> = menu
-        .files
-        .iter()
-        .map(|f| {
-            let total = menu.timings.total(&f.lines);
-            (total.timed > 0).then_some(total.known)
-        })
-        .collect();
-    let with_times = totals.iter().any(Option::is_some);
+    // Panel de ficheros: `●` en el del estado guardado y, si se conoce, su tiempo alineado a la derecha.
+    let row_width = list_row_width(files_area);
     let files: Vec<ListItem> = menu
         .files
         .iter()
-        .zip(&totals)
         .enumerate()
-        .map(|(i, (f, total))| {
+        .map(|(i, f)| {
             let mark = if menu.saved.is_some_and(|(file, _)| file == i) {
                 "● "
             } else {
                 "  "
             };
-            let mut spans = vec![Span::raw(mark)];
-            if with_times {
-                spans.push(time_column(*total));
-                spans.push(Span::raw(" "));
+            let name = Span::raw(format!("{mark}{}", f.name));
+            let total = menu.timings.total(&f.lines);
+            if total.timed == 0 {
+                return ListItem::new(TextLine::from(name));
             }
-            spans.push(Span::raw(f.name.clone()));
-            ListItem::new(TextLine::from(spans))
+            ListItem::new(align_time(name, total.known, row_width))
         })
         .collect();
     let focused = menu.panel == Panel::Files;
@@ -65,26 +55,21 @@ pub(super) fn render(menu: &Menu, frame: &mut Frame) {
     let mut files_state = ListState::default().with_selected(Some(menu.file));
     frame.render_stateful_widget(files, files_area, &mut files_state);
 
-    // Panel de líneas del fichero seleccionado, coloreadas por tipo. Si algún comando tiene tiempo, va junto al
-    // número (`[005 00:00:14]`) y el texto queda en columna.
+    // Panel de líneas del fichero seleccionado, coloreadas por tipo; a la derecha de cada comando, lo que tardó la
+    // última vez.
+    let row_width = list_row_width(lines_area);
     let lines = menu.current_lines();
-    let with_times = lines.iter().any(|l| command_time(menu, l).is_some());
     let items: Vec<ListItem> = lines
         .iter()
         .enumerate()
         .map(|(i, line)| {
             let saved = menu.saved == Some((menu.file, i));
-            let spans = match (with_times, command_time(menu, line)) {
-                (true, Some(d)) => vec![
-                    Span::raw(format!("[{:03} ", i + 1)),
-                    time(format_duration(d)),
-                    Span::raw(format!("] {}", line.text)),
-                ],
-                // Sin tiempo: hueco del mismo ancho que ` 00:00:00`, para que el texto quede alineado.
-                (true, None) => vec![Span::raw(format!("[{:03}]{:9} {}", i + 1, "", line.text))],
-                (false, _) => vec![Span::raw(format!("[{:03}] {}", i + 1, line.text))],
+            let text = Span::raw(format!("[{:03}] {}", i + 1, line.text));
+            let row = match command_time(menu, line) {
+                Some(d) => align_time(text, d, row_width),
+                None => TextLine::from(text),
             };
-            ListItem::new(TextLine::from(spans)).style(line_style(line.kind, saved))
+            ListItem::new(row).style(line_style(line.kind, saved))
         })
         .collect();
     let title = match menu.files.get(menu.file) {
@@ -128,7 +113,7 @@ fn header_line(menu: &Menu) -> TextLine<'static> {
     ];
     if let Some(total) = menu.timings.remaining(&menu.files, 0, 0).describe() {
         spans.push(Span::raw("  ·  "));
-        spans.push(time(format!("Total {total}")));
+        spans.push(time(format!("🕒 Total {total}")));
     }
     TextLine::from(spans)
 }
@@ -140,12 +125,22 @@ fn command_time(menu: &Menu, line: &Line) -> Option<Duration> {
         .flatten()
 }
 
-/// Columna de tiempo de un fichero: el tiempo, o un hueco del mismo ancho si no tiene.
-fn time_column(total: Option<Duration>) -> Span<'static> {
-    match total {
-        Some(d) => time(format_duration(d)),
-        None => Span::raw(" ".repeat(8)),
-    }
+/// Espacio libre entre el tiempo y el borde derecho del panel.
+const RIGHT_MARGIN: usize = 2;
+
+/// Ancho útil de una fila de lista: el del panel menos los bordes (2) y el hueco del símbolo `> ` (2).
+fn list_row_width(area: Rect) -> usize {
+    usize::from(area.width).saturating_sub(4)
+}
+
+/// `text` y, alineado a la derecha (dejando `RIGHT_MARGIN` hasta el borde), `🕒 00:00:14` en azul claro. Si el texto
+/// no deja sitio, el tiempo va detrás, separado por dos espacios.
+fn align_time(text: Span<'static>, d: Duration, row_width: usize) -> TextLine<'static> {
+    let clock = time(format!("🕒 {}", format_duration(d)));
+    let gap = row_width
+        .saturating_sub(text.width() + clock.width() + RIGHT_MARGIN)
+        .max(2);
+    TextLine::from(vec![text, Span::raw(" ".repeat(gap)), clock])
 }
 
 /// Un tiempo, en azul claro (como las etiquetas del popup; el amarillo es para la línea guardada).
@@ -372,20 +367,17 @@ mod tests {
 
         let screen = draw(&menu, 110, 9);
         assert!(
-            screen.contains("[002 00:02:05] echo a"),
+            screen.contains("[002] echo a") && screen.contains("🕒 00:02:05  │"),
             "tiempo de la línea:\n{screen}"
         );
         assert!(
-            screen.contains("[003]          echo b"),
-            "sin tiempo, hueco y texto alineado:\n{screen}"
+            !screen.contains("echo b  🕒"),
+            "sin tiempo, nada:\n{screen}"
         );
+        assert!(screen.contains("● 01-a"), "total del fichero:\n{screen}");
+        assert!(screen.contains("01:00:00  │"), "{screen}");
         assert!(
-            screen.contains("● 00:02:05 01-a"),
-            "total del fichero:\n{screen}"
-        );
-        assert!(screen.contains("  01:00:00 03-c"), "{screen}");
-        assert!(
-            screen.contains("Total ~01:02:05, 1 sin tiempo"),
+            screen.contains("🕒 Total ~01:02:05, 1 sin tiempo"),
             "cabecera:\n{screen}"
         );
 

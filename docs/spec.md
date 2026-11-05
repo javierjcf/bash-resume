@@ -58,9 +58,8 @@ o desde cualquier punto elegido en un menú interactivo.
 - El comando **no recibe el teclado**: stdin es una terminal falsa (PTY) vacía (D15). Es una terminal, así que `docker run -it` y `docker compose run` funcionan; pero si un comando la pone en modo raw no afecta a la terminal real, y Ctrl+C sigue llegando como señal a bash-resume. Un comando que lea de stdin recibe fin de entrada; `sudo` sigue pidiendo la contraseña porque la lee de `/dev/tty`. Si no se puede crear la PTY, stdin es `/dev/null`.
 - **¿Es un error?** `exit 0` → éxito; cualquier otro código (o morir por una señal) → fallo.
   **[cambio]** Se elimina la heurística de Python para `exit 255` + `--stop-after-init`: en Odoo un 255 es siempre un error real (D9). Para aceptar un código en un paso concreto: `cmd || true`.
-- **Ctrl+C** durante un comando: la terminal se lo envía al comando, que se detiene; bash-resume **no** se detiene, registra `⛔ Ctrl+C detectado…` y lo trata como un fallo (estado en esa línea + `onerror`, código 1), igual que Python. Cuenta como fallo aunque el comando termine con 0 al recibirlo (Odoo hace `os._exit(0)` al segundo Ctrl+C).
-- La línea del log que anuncia el comando lleva su número entre todos los de los ficheros de pasos (contando desde el principio, no desde donde se reanuda) y, si hay tiempos guardados, lo que queda: `▶ [13/40] Ejecutando comando: …   (quedan ~01:20:00)` (§6.1). No se añade ninguna línea por comando.
-- Al terminar se registra en el log `Tiempo de ejecución: HH:MM:SS` (`00:05:02`). **[cambio]** En Python, sin ceros a la izquierda (`0:5:2`).
+- **Ctrl+C** durante un comando: la terminal se lo envía al comando, que se detiene; bash-resume **no** se detiene, registra `⛔ … (Ctrl+C)` y lo trata como un fallo (estado en esa línea + `onerror`, código 1), igual que Python. Cuenta como fallo aunque el comando termine con 0 al recibirlo (Odoo hace `os._exit(0)` al segundo Ctrl+C).
+- En el log, **dos líneas por comando** (§8): al empezar, el comando con su número entre todos los de los ficheros de pasos (contando desde el principio, no desde donde se reanuda) y, si hay tiempos guardados, lo que queda (§6.1); al terminar, el resultado, lo que tardó (`HH:MM:SS`) y de nuevo el comando, para que cada línea se entienda sola. **[cambio]** En Python eran cuatro (`Ejecutando comando`, `Proceso finalizado…`, `Comando completado…` y `Tiempo de ejecución: h:m:s`).
 
 ## 5. Recorrido de los pasos (`run_steps`)
 
@@ -75,12 +74,12 @@ o desde cualquier punto elegido en un menú interactivo.
 3. Cuando se terminan los ficheros: `Procesado todos los ficheros disponibles.`
 4. El recorrido devuelve cómo terminó (terminado, parada, fallo o una vez) para que el flujo principal decida qué mostrar.
 5. Cada fichero se lee al llegar a él, así que se pueden editar los pasos siguientes mientras se ejecutan los anteriores.
-6. Tiempos (§6.1), sin cambiar nada de lo anterior: cada `cmd` que termina bien guarda lo que tardó; al acabar cada fichero se registra `⏱ Fichero 02-migrar: 01:05:30`; al final, `⏱ Esta ejecución: …` y, solo si se procesaron todos los ficheros, `⏱ Resumen de tiempos:` con una fila por fichero y el total.
+6. Tiempos (§6.1), sin cambiar nada de lo anterior: cada `cmd` que termina bien guarda lo que tardó; al acabar cada fichero se registra `🕒 Fichero 02-migrar: 01:05:30`; al final, `🕒 Esta ejecución: …` y, solo si se procesaron todos los ficheros, `🕒 Resumen de tiempos:` con una fila por fichero y el total.
 
 ### onerror
 
 - Es el fichero `onerror` dentro del **proyecto**. Si no existe → WARNING en el log.
-- Se ejecuta línea a línea, saltando las vacías y las que empiezan por `#`. Sus fallos se ignoran.
+- Se ejecuta línea a línea, saltando las vacías y las que empiezan por `#`. Sus fallos se ignoran. En el log, cada comando sale como los demás (`⏳ comando` y su resultado), sin `[n/N]` y con la fuente `[onerror]`.
 
 ## 6. Estado (`state.json` en el proyecto)
 
@@ -144,7 +143,7 @@ Tras resolver las rutas (§2), todo pasa en la TUI (D12). En Python era una preg
 ### 7.2 Menú y confirmación (TUI) **[cambio]**
 
 ```
- Workdir: /opt/odoo/doodba-20  ·  Pasos: ~/migr/steps  ·  ● estado válido  ·  Total ~02:10:00
+ Workdir: /opt/odoo/doodba-20  ·  Pasos: ~/migr/steps  ·  ● estado válido  ·  🕒 Total ~02:10:00
 ┌ Ficheros ─────┬ 02-migrar ──────────────────────────────────────────┐
 │   01-prep     │  [001] #> MIGRANDO                                  │
 │ > ● 02-migr ┌─ ¿Ejecutar? ────────────────────────────────────────┐ │
@@ -159,9 +158,9 @@ Tras resolver las rutas (§2), todo pasa en la TUI (D12). En Python era una preg
  02-migrar:3 → docker compose run … │ ↑↓/jk mover · Tab panel · Enter elegir · q salir
 ```
 
-- **Cabecera:** directorio de trabajo, carpeta de pasos y `● estado válido` (verde) o `⚠ estado no válido: elige una línea` (amarillo). Con tiempos guardados, `Total ~02:10:00` en azul claro (§6.1).
-- **Panel izquierdo:** ficheros. El del estado guardado va marcado con `●`. Si algún fichero tiene tiempos, una columna en azul claro con el de cada uno, antes del nombre: `● 01:05:30 02-migrar`.
-- **Panel derecho:** líneas del fichero seleccionado, con preview en vivo, número `[001]` y color por tipo (`log` verde, `stop` rojo, `comment` gris). La línea del estado guardado sale en amarillo. Si algún comando del fichero tiene tiempo, va junto al número, en azul claro (`[005 00:45:10] docker …`); las líneas sin tiempo dejan el hueco, para que el texto quede en columna.
+- **Cabecera:** directorio de trabajo, carpeta de pasos y `● estado válido` (verde) o `⚠ estado no válido: elige una línea` (amarillo). Con tiempos guardados, `🕒 Total ~02:10:00` en azul claro (§6.1).
+- **Panel izquierdo:** ficheros. El del estado guardado va marcado con `●`. Si se conoce alguno de sus comandos, su tiempo en azul claro, alineado a la derecha del panel (`🕒 01:05:30`), con un pequeño margen hasta el borde.
+- **Panel derecho:** líneas del fichero seleccionado, con preview en vivo, número `[001]` y color por tipo (`log` verde, `stop` rojo, `comment` gris). La línea del estado guardado sale en amarillo. A la derecha de cada comando con tiempo guardado, alineado igual que en ficheros y en azul claro, lo que tardó la última vez (`🕒 00:45:10`); si el comando es muy largo, va justo detrás.
 - **Barra inferior:** `fichero:línea → comando` y la ayuda de teclas.
 - **Popup de confirmación** (modal, centrado): fichero y línea, comando destacado, directorio de trabajo, carpeta de pasos, tiempos (lo que tardó ese comando la última vez y lo que queda desde él, si se sabe algo) y teclas. Mientras está abierto, solo responde a sus teclas.
 - Al abrirse, con estado válido: sin popup, foco en el panel de líneas y cursor en la línea guardada. Sin estado válido: foco en ficheros, con el del estado seleccionado si existe (como en Python).
@@ -192,16 +191,22 @@ Tras resolver las rutas (§2), todo pasa en la TUI (D12). En Python era una preg
 
 ## 8. Log (`migration.log` en el proyecto)
 
-- **Fichero** (en modo append), sin colores: `YYYY-mm-dd HH:MM:SS - [fichero] LEVEL   : mensaje`. El nivel se rellena hasta 8 caracteres.
+- **Fichero** (en modo append), sin colores: `YYYY-mm-dd HH:MM:SS - [fichero] LEVEL:      mensaje`. `[fichero] LEVEL:` se rellena hasta 30 caracteres, así los mensajes quedan en columna aunque el nombre del fichero varíe; si no cabe, se deja un espacio. **[cambio]** En Python, `LEVEL   : mensaje` (nivel rellenado a 8).
 - **Consola (stderr):** el mismo formato, con colores ANSI (fecha azul; INFO verde, WARNING amarillo, ERROR rojo).
   **[cambio]** Solo hay colores si stderr es una terminal; redirigido a un fichero o una tubería, sale texto limpio.
 - Un error al escribir el log se ignora: el log nunca detiene la ejecución.
 - `[fichero]` es el fichero de pasos que se está procesando (u `onerror`). Si no hay ninguno, no se escribe.
 - La salida de los comandos **no** se escribe en el log: va solo a la terminal (§4). El log solo tiene los mensajes de bash-resume.
-- Mensajes principales: `▶ [n/N] Ejecutando comando: …   (quedan ~…)`, `🔚 Proceso finalizado correctamente (exit code: 0)`,
-  `⚠️ Proceso finalizado con código de salida no cero: N`, `Comando fallido (exit code N): …`,
-  `✅ Comando completado correctamente (exit code N): …`, `Tiempo de ejecución: HH:MM:SS`, `⏱ Fichero …`,
-  `⏱ Resumen de tiempos:` (con una fila por fichero y `Total`) y `⏱ Esta ejecución: …` (§6.1).
+- Cada comando ocupa dos líneas, la de inicio y la de resultado, y cada una se entiende sola (sirven para `grep`):
+  ```
+  … [02-migrar] INFO:             ⏳ [13/40] docker compose run --rm odoo --update all   (quedan ~01:20:00)
+  … [02-migrar] INFO:             ✅ [13/40] 00:47:02 docker compose run --rm odoo --update all
+  … [02-migrar] ERROR:            ❌ [13/40] 00:00:51 docker compose run --rm odoo --update all   (exit 1)
+  … [02-migrar] WARNING:          ⛔ [13/40] 00:00:03 docker compose run --rm odoo --update all   (Ctrl+C)
+  ```
+  Entre paréntesis, el motivo del fallo: el código de salida, la señal si murió por una o `no se pudo lanzar: <error>`.
+- Otros mensajes: `#>` tal cual, `🕒 Fichero …`,
+  `🕒 Resumen de tiempos:` (con una fila por fichero y `Total`) y `🕒 Esta ejecución: …` (§6.1).
 
 ## 9. CLI
 
