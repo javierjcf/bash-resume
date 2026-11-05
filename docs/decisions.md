@@ -42,7 +42,7 @@ igual que el resto de rutas. No se guarda en `state.json`, porque el estado vive
 **Decisión.** Mismas claves y tipos, con `null` para lo que no tiene valor.
 **Motivo.** Poder alternar entre las dos versiones durante la migración.
 
-## D5 — Menú ratatui en una sola pantalla
+## D5 — Menú ratatui en una sola pantalla — *Sustituida por D12*
 
 **Decisión.** Dos paneles (ficheros y líneas) con preview en vivo y la confirmación integrada
 (`y` / `o` / `q`). Se mantiene el primer prompt de texto con el resumen.
@@ -125,3 +125,15 @@ valor por defecto `migration-steps`). Se quita el feature `env` de clap.
 **Alternativas.** Buscar el proyecto hacia arriba, como git (más magia); un subcomando `init` (un paso más);
 una estructura por convención con `migration-steps/steps` (impone cómo organizar los pasos); variables de
 entorno para los pasos (sin valor claro hoy).
+
+## D12 — Todo en la TUI, con confirmación en un popup
+
+**Contexto.** Con D5, elegir una línea en el menú la ejecutaba directamente, y antes había una pregunta de texto
+(`[Y/S]…`). Un `Enter` de más podía lanzar un paso destructivo, y había dos interfaces para lo mismo.
+**Decisión.** Se recupera el flujo de Python (**resumen → confirmar o volver al menú**), pero dentro de ratatui:
+la TUI se abre siempre; con estado válido, con un **popup de confirmación** sobre la línea guardada. Elegir una
+línea abre el popup, y solo desde él se ejecuta. La pregunta de texto desaparece (las preguntas de rutas de la
+primera vez siguen siendo de texto). Flags opcionales **`-y/--yes`** y **`-o/--once`** para saltarse la TUI
+(continuar o un solo comando desde el estado), que tampoco necesitan terminal. Sin terminal y sin flags, error claro.
+**Alternativas.** Sección fija bajo los paneles (siempre visible, pero sin el foco claro de un modal); mantener la
+pregunta de texto como plan B sin terminal (dos interfaces que mantener).

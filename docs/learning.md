@@ -467,3 +467,26 @@ let dir = match arg {
 
 **Quitar código también es diseño**
 - Se eliminan el valor por defecto `migration-steps`, la variable `BASH_RESUME_HOME` y el feature `env` de clap: menos casos, menos dependencias y un comportamiento más fácil de explicar.
+
+---
+
+## T15 — Todo en la TUI, con confirmación en un popup
+
+**Estado modal**
+- Un campo `confirm: bool` y una comprobación **antes** del `match` de siempre: si el popup está abierto, solo cuentan sus teclas y se sale de la función. Es la forma más simple de una máquina de estados con "modos".
+- Alternativa si crecieran los modos: un `enum Screen { Browse, Confirm }` en lugar de booleanos.
+
+**Popup en ratatui**
+- Se dibuja **después** de los paneles, encima. Primero `frame.render_widget(Clear, area)`, que borra esa zona; si no, se verían las letras de debajo.
+- Centrar: `Layout::vertical([Constraint::Length(h)]).flex(Flex::Center)` y lo mismo en horizontal.
+- Texto con estilos por trozos: `Line::from(vec![Span::styled("…", estilo), Span::raw("…")])` (en el código, `TextLine` para no chocar con nuestro `parser::Line`). `Paragraph::wrap(Wrap { trim: false })` parte las líneas largas.
+
+**`FnOnce` frente a `FnMut`**
+- `choose_action` llama al menú **una sola vez**, así que pide `impl FnOnce(...)`, que es lo más permisivo para quien lo pasa: vale cualquier closure, incluso una que consume lo que captura (`|_, _| Ok(Some(picked))` mueve `picked`).
+- Orden de exigencia: `Fn` (llamable muchas veces, solo lee) ⊂ `FnMut` (muchas veces, puede modificar) ⊂ `FnOnce` (al menos una vez).
+
+**Tests que prueban que algo NO pasa**
+- `fn no_menu(...) -> … { panic!("…") }` como menú falso: si `-y`/`-o` abrieran el menú, el test fallaría.
+
+**clap**
+- `#[arg(short, long, conflicts_with = "yes")] once: bool`: un `bool` es un flag sin valor, y `conflicts_with` hace que clap rechace `-y -o` con su propio mensaje.

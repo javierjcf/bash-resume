@@ -20,6 +20,7 @@ Cada tarea deja el proyecto **compilando y con los tests en verde**. Las referen
 | T12 | [x] | `menu`: render ratatui |
 | T13 | [x] | README y cierre de la documentación |
 | T14 | [x] | El directorio actual es el proyecto (`-p/--project`) |
+| T15 | [x] | Todo en la TUI, con confirmación en popup, y flags `-y`/`-o` |
 
 ---
 
@@ -96,3 +97,8 @@ Cada tarea deja el proyecto **compilando y con los tests en verde**. Las referen
 - **Hace:** `-p/--project` sustituye a `-H/--home` (sin variable de entorno). Sin `-p`, el proyecto es el directorio actual. Si no hay `state.json`, se avisa y se crea; después se preguntan las rutas que falten. Se elimina la carpeta de pasos por defecto (`migration-steps`).
 - **Aceptación:** `bash-resume` a secas en una carpeta vacía avisa, crea `state.json` y pregunta pasos y workdir; al relanzar no pregunta rutas; `-p /no/existe` da error y código 1.
 - **Rust:** `std::env::current_dir`, `Option<&Path>` con `match`, `io::Error::other`, `Path::exists`.
+
+### T15 — Todo en la TUI, con confirmación en popup, y flags `-y`/`-o` (D12)
+- **Hace:** desaparece la pregunta de texto `Y/M/O/N`. La TUI se abre siempre; con estado válido, con un popup de confirmación sobre la línea guardada. Elegir una línea abre el popup y solo desde él se ejecuta. Cabecera con workdir, pasos y estado. `-y/--yes` y `-o/--once` continúan o ejecutan un comando sin abrir la TUI.
+- **Aceptación:** nunca se ejecuta sin pasar por el popup; `Esc` en el popup vuelve a navegar; `-y`/`-o` funcionan sin terminal y dan error con estado inválido; sin terminal y sin flags, error claro.
+- **Rust:** estado modal comprobado antes del `match`, `FnOnce` frente a `FnMut`, `Clear`, `Flex::Center`, `Paragraph` + `Wrap`, `Span`/`Line` de ratatui, `conflicts_with` de clap.

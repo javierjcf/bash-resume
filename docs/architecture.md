@@ -23,13 +23,13 @@ src/
 ├── main.rs     binario: parsea los args con clap, llama a app::run y devuelve el código de salida
 ├── lib.rs      declara los módulos (pub mod …) y el helper with_path para los errores
 ├── cli.rs      struct Args (clap)
-├── app.rs      flujo principal: resolver rutas, preguntas Y/M/O/N y lanzar el runner
+├── app.rs      flujo principal: resolver rutas, abrir la TUI (o -y/-o) y lanzar el runner
 ├── parser.rs   tipos de línea, clasificar y leer ficheros de pasos
 ├── state.rs    state.json
 ├── log.rs      logger a fichero y consola
 ├── exec.rs     ejecutar un comando (terminal heredada, código de salida, Ctrl+C)
 ├── runner.rs   recorrido de los pasos, stop, once y onerror
-├── menu.rs     menú: lógica (Menu, handle_key) y dibujo con ratatui (render, choose)
+├── menu.rs     TUI: lógica (Menu, handle_key, popup de confirmación) y dibujo con ratatui (render, choose)
 └── testutil.rs utilidades para los tests unitarios (temp_dir); solo con `cargo test`
 tests/
 └── runner.rs   tests de integración (pasos de ejemplo de principio a fin)

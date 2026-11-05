@@ -18,6 +18,14 @@ pub struct Args {
     /// Carpeta del proyecto: state.json, migration.log y onerror (por defecto, el directorio actual)
     #[arg(short, long, value_name = "DIR")]
     pub project: Option<PathBuf>,
+
+    /// Continúa desde la posición guardada sin abrir el menú
+    #[arg(short, long)]
+    pub yes: bool,
+
+    /// Ejecuta solo el comando de la posición guardada, sin abrir el menú
+    #[arg(short, long, conflicts_with = "yes")]
+    pub once: bool,
 }
 
 #[cfg(test)]
@@ -52,6 +60,18 @@ mod tests {
             Args::try_parse_from(["bash-resume", "--steps", "/s", "--project", "/p"]).unwrap();
         assert_eq!(args.steps, Some(PathBuf::from("/s")));
         assert_eq!(args.project, Some(PathBuf::from("/p")));
+    }
+
+    #[test]
+    fn parses_yes_and_once_flags() {
+        let args = Args::try_parse_from(["bash-resume", "-y"]).unwrap();
+        assert!(args.yes && !args.once);
+        let args = Args::try_parse_from(["bash-resume", "--once"]).unwrap();
+        assert!(args.once && !args.yes);
+        assert!(
+            Args::try_parse_from(["bash-resume", "-y", "-o"]).is_err(),
+            "son incompatibles"
+        );
     }
 
     #[test]

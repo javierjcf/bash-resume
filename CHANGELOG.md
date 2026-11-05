@@ -14,10 +14,11 @@ misma funcionalidad y un único binario sin dependencias.
 
 - **Ficheros de pasos**: se ejecutan en orden alfabético, línea a línea. Cada línea es un proceso independiente
   que empieza siempre en el directorio de trabajo. Marcas: `#>` mensaje al log, `#.` parada y `#` comentario.
-- **Reanudar**: `state.json` guarda por dónde va tras cada comando. Al relanzar se muestra el punto pendiente y se
-  ofrece continuar (`Y`), ejecutar un solo comando (`O`), elegir otro punto (`M`) o salir (`N`).
-- **Menú interactivo** en la terminal: ficheros y líneas en dos paneles, coloreadas por tipo, con el punto guardado
-  resaltado. Elegir una línea ya la ejecuta.
+- **Reanudar**: `state.json` guarda por dónde va tras cada comando. Al relanzar se abre la interfaz con un popup
+  de confirmación sobre el punto pendiente: continuar, ejecutar un solo comando, elegir otra línea o salir.
+- **Interfaz de terminal**: ficheros y líneas en dos paneles, coloreadas por tipo, con el punto guardado resaltado.
+  Nunca se ejecuta nada sin confirmarlo en el popup.
+- **`-y/--yes` y `-o/--once`** para continuar o ejecutar un solo comando sin abrir la interfaz.
 - **Fallos**: se guarda la línea que falló, se ejecuta `onerror` (por ejemplo, un aviso por Telegram) y se sale con
   código 1. Al reanudar se repite esa línea.
 - **Ctrl+C** durante un comando lo detiene a él, no a bash-resume: queda registrado en el log y se trata como un fallo.
@@ -41,7 +42,8 @@ misma funcionalidad y un único binario sin dependencias.
 - **Sin heurística para `exit 255` con `--stop-after-init`**: en Odoo, un 255 es siempre un error real, así que
   cualquier código distinto de 0 cuenta como fallo.
 - **Los comandos pueden pedir datos por teclado**: en Python no se podía responder a sus preguntas.
-- **Menú en una sola pantalla**, en lugar de dos menús seguidos y una pregunta de confirmación.
+- **Todo en una interfaz de terminal**, en lugar de una pregunta de texto y dos menús curses seguidos; se mantiene
+  el flujo de confirmar antes de ejecutar.
 - **Más robusto**: `state.json` se guarda de forma atómica (un corte nunca lo deja a medias), los errores indican
   qué fichero falló, un fichero vacío en el menú ya no rompe el programa, se ignoran las subcarpetas de pasos y
   se aceptan finales de línea de Windows.

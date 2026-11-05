@@ -73,29 +73,28 @@ se crean ahí y git los ignora. `demo/` es la carpeta del proyecto: se usa con `
 **Primera vez y reanudar**
 ```bash
 rm -f demo/state.json                  # empezar de cero
-cargo run -- . -s demo/steps -p demo   # sin estado → [M] → menú: Enter, Enter → ejecuta hasta el `false`
+cargo run -- . -s demo/steps -p demo   # sin estado → interfaz: Enter, Enter, Enter → ejecuta hasta el `false`
 echo $?                                # 1: falló un comando (0 si terminó, se paró en `#.` o salió)
-cargo run -- -p demo                   # recuerda workdir y pasos; propone continuar en el `false`
+cargo run -- -p demo                   # recuerda workdir y pasos; popup de confirmación sobre el `false`
 cat demo/state.json                    # por dónde va
 tail -f demo/migration.log             # en otra terminal: el log en vivo
 ```
-Para "arreglar" el fallo, cambia `false` por `true` en `demo/steps/02-fallar` y responde `Y`: seguirá
+Para "arreglar" el fallo, cambia `false` por `true` en `demo/steps/02-fallar` y pulsa `Enter` en el popup: seguirá
 hasta el `#.`, y la siguiente vez se vuelve a parar ahí. Después, `git checkout demo/steps`.
 
-**Preguntas y menú**
-- Pregunta inicial: `Y`/`S` continuar · `O` un solo comando · `M` menú · `N` salir.
-- Menú: `↑↓`/`jk` mover · `Tab`/`←→` cambiar de panel · `Enter`/`y`/`s` ejecutar desde la línea ·
-  `o` solo esa línea · `Esc` volver · `q` (o Ctrl+C) salir.
-- Sin terminal, el menú da un error claro: `printf 'm\n' | cargo run -- -p demo`.
-- Responder por tubería (scripts): `printf 'n\n' | cargo run -- -p demo`.
+**Interfaz y flags**
+- Popup: `Enter`/`y`/`s` continuar · `o` un solo comando · `Esc`/`m`/`n` elegir otra línea · `q` (o Ctrl+C) salir.
+- Paneles: `↑↓`/`jk` mover · `Tab`/`←→` cambiar de panel · `Enter` en una línea abre el popup · `q` salir.
+- Sin la interfaz: `cargo run -- -p demo -y` (continuar) o `cargo run -- -p demo -o` (un solo comando).
+- Sin terminal y sin flags, error claro: `cargo run -- -p demo < /dev/null`.
 
 **Ctrl+C**
 ```bash
 printf 'echo a\nsleep 30\necho b\n' > demo/steps/03-esperar   # paso largo de prueba
-cargo run -- -p demo                   # M → baja a 03-esperar → Enter → Enter
+cargo run -- -p demo                   # Esc → baja a 03-esperar → Enter → Enter → Enter
 ```
 Pulsa **Ctrl+C** durante el `sleep 30`: el log muestra `⛔ Ctrl+C detectado`, se ejecuta `onerror`, el
-estado queda en el `sleep` y `echo $?` da 1. En una pregunta, Ctrl+C sale sin hacer nada.
+estado queda en el `sleep` y `echo $?` da 1. En la interfaz, Ctrl+C sale sin hacer nada.
 Al terminar: `rm demo/steps/03-esperar`.
 
 **Casos raros**

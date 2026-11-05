@@ -48,14 +48,15 @@ cd ~/migr                                          # la carpeta del proyecto es 
 bash-resume /opt/odoo/doodba -s pasos
 ```
 
-1. La primera vez no hay estado: responde **`m`** para abrir el menú, elige una línea y pulsa **`Enter`**.
-2. Las siguientes veces basta con `bash-resume` en esa carpeta: recuerda el directorio de trabajo y los pasos,
-   muestra el punto pendiente y pregunta qué hacer.
+1. La primera vez no hay estado: se abre la interfaz para elegir la línea de inicio (`Enter` para entrar en el
+   fichero, `Enter` en la línea y `Enter` para confirmar).
+2. Las siguientes veces basta con `bash-resume` en esa carpeta: recuerda el directorio de trabajo y los pasos
+   y abre el popup de confirmación sobre el punto pendiente. `Enter` para continuar.
 
 ## Uso
 
 ```bash
-bash-resume [WORKDIR] [-s|--steps DIR] [-p|--project DIR]
+bash-resume [WORKDIR] [-s|--steps DIR] [-p|--project DIR] [-y|--yes | -o|--once]
 ```
 
 | Argumento | Qué es | Si no se indica |
@@ -63,40 +64,52 @@ bash-resume [WORKDIR] [-s|--steps DIR] [-p|--project DIR]
 | `WORKDIR` | Directorio donde se ejecutan los comandos (por ejemplo, el doodba) | El guardado en el estado, o se pregunta |
 | `-s, --steps` | Carpeta con los ficheros de pasos | La guardada en el estado, o se pregunta |
 | `-p, --project` | Carpeta del proyecto: `state.json`, `migration.log` y `onerror` | El directorio actual |
+| `-y, --yes` | Continuar desde el punto guardado sin abrir la interfaz | Se abre la interfaz |
+| `-o, --once` | Ejecutar solo el comando del punto guardado, sin abrir la interfaz | Se abre la interfaz |
 
 Lo normal es una carpeta por migración: `cd` a ella y `bash-resume`. Si no hay `state.json`, avisa y crea el
 proyecto, y pregunta el directorio de trabajo y la carpeta de pasos la primera vez. Desde otro sitio: `bash-resume -p ~/migr`.
 
-### La pregunta inicial
+### La interfaz
+
+Al arrancar se abre la interfaz de terminal. Si hay un punto guardado, aparece directamente el **popup de
+confirmación** con lo que se va a ejecutar; nunca se ejecuta nada sin pasar por él.
 
 ```
-> Resumen de ejecución pendiente
-  Fichero a ejecutar      : 02-migrar
-  Línea                   : 3
-  Comando a ejecutar      : docker compose run --rm odoo --stop-after-init
-[Y/S] Continuar | [M] Menú | [O] Una vez | [N] Salir:
+ Workdir: /opt/odoo/doodba-20  ·  Pasos: ~/migr/steps  ·  ● estado válido
+┌ Ficheros ─────┬ 02-migrar ──────────────────────────────────────────┐
+│   01-prep     │  [001] #> MIGRANDO                                  │
+│ > ● 02-migr ┌─ ¿Ejecutar? ────────────────────────────────────────┐ │
+│   03-limp   │ Fichero  02-migrar · línea 3                        │ │
+│             │ ▶ docker compose run --rm odoo --update all …       │ │
+│             │ Workdir  /opt/odoo/doodba-20                        │ │
+│             │                                                     │ │
+│             │ [Enter] continuar  [o] una vez  [Esc] elegir otra línea  [q] salir │
+└─────────────└─────────────────────────────────────────────────────┘─┘
 ```
+
+**En el popup:**
 
 | Tecla | Qué hace |
 |---|---|
-| `Y` / `S` | Ejecuta desde ese punto hasta el final, una parada `#.` o un fallo |
-| `O` | Ejecuta **un solo** comando y para (para ir paso a paso) |
-| `M` | Abre el menú para elegir otro punto |
-| `N` | Sale sin ejecutar nada |
+| `Enter` / `y` / `s` | Ejecuta desde esa línea hasta el final, una parada `#.` o un fallo |
+| `o` | Ejecuta **un solo** comando y para (para ir paso a paso) |
+| `Esc` / `m` / `n` | Vuelve a los paneles para elegir otra línea |
+| `q` / Ctrl+C | Sale sin ejecutar nada |
 
-### El menú
-
-Ficheros a la izquierda y sus líneas a la derecha, coloreadas por tipo. `●` marca el fichero del
-estado guardado y su línea sale en amarillo.
+**En los paneles** (ficheros a la izquierda, sus líneas a la derecha, coloreadas por tipo; `●` marca el
+fichero del estado guardado y su línea sale en amarillo):
 
 | Tecla | Qué hace |
 |---|---|
 | `↑ ↓` / `k j` | Moverse |
 | `Enter` / `→` / `Tab` (en ficheros) | Entrar en las líneas del fichero |
 | `Esc` / `←` / `Tab` (en líneas) | Volver a los ficheros |
-| `Enter` / `y` / `s` (en líneas) | Ejecutar desde esa línea |
-| `o` (en líneas) | Ejecutar solo esa línea |
+| `Enter` (en líneas) | Abrir el popup de confirmación con esa línea |
 | `q` / Ctrl+C, o `Esc` en ficheros | Salir sin ejecutar |
+
+**Sin pasar por la interfaz** (opcional): `bash-resume -y` continúa desde el punto guardado y `bash-resume -o`
+ejecuta solo su comando. Sirven también por `ssh` sin `-t` o en un script.
 
 ## Ficheros de pasos
 
@@ -160,7 +173,7 @@ cargo build --release --locked --target x86_64-unknown-linux-musl
 
 - **El directorio actual es el proyecto** (`-p/--project` para otro): `state.json`, el log y `onerror` viven en una carpeta por migración, no junto al script.
 - Argumentos más cortos: `WORKDIR`, `-s/--steps` (antes `--steps-path`).
-- Menú en una sola pantalla; elegir una línea ya confirma la ejecución.
+- Todo en una interfaz de terminal: menú de dos paneles y popup de confirmación antes de ejecutar; `-y`/`-o` para saltársela.
 - Los comandos se ejecutan con `bash -euo pipefail` en vez de `sh -c` ([D10](docs/decisions.md)).
 - Los comandos pueden pedir datos por teclado (prompts de `sudo`, `[y/N]`…).
 - Ya no hay heurística para `exit 255` con `--stop-after-init`: en Odoo un 255 es siempre un error ([D9](docs/decisions.md)).

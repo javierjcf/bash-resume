@@ -101,40 +101,71 @@ El formato es **compatible con la versión Python**:
 
 ## 7. Flujo interactivo
 
-### 7.1 Inicio
+### 7.1 Inicio **[cambio]**
 
-- **Estado válido:** se muestra el resumen (directorios, fichero, línea y comando) y la pregunta
-  `[Y/S] Continuar | [M] Menú | [O] Una vez | [N] Salir`.
-- **Estado inválido:** `El estado previo no es válido…` y la pregunta `[M] Abrir menú | [N] Salir`, que se repite hasta recibir una respuesta válida.
-- **[cambio]** Una respuesta no válida con estado válido vuelve a preguntar (en Python abría el menú).
-- **[cambio]** Elegir una línea en el menú (`Enter`/`y`/`o`) ya confirma: se guarda en el estado y se ejecuta, sin volver a preguntar (D5). Salir del menú sin elegir termina sin ejecutar nada.
-- Si se cierra la entrada (Ctrl+D) en una pregunta: `❌ Error: entrada cerrada` y código 1.
+Tras resolver las rutas (§2), todo pasa en la TUI (D12). En Python era una pregunta de texto
+(`[Y/S] Continuar | [M] Menú | [O] Una vez | [N] Salir`) y, con `M`, menús curses.
+
+- **Estado válido:** se abre la TUI con el **popup de confirmación** ya abierto sobre la línea guardada
+  (el equivalente al resumen de Python).
+- **Estado inválido:** se abre la TUI navegando, con el aviso `⚠ estado no válido: elige una línea` en la cabecera.
+- **Nunca se ejecuta nada sin pasar por el popup.** Salir sin elegir termina sin ejecutar nada.
+- **Flags para saltarse la TUI** (opcionales): `-y/--yes` continúa desde la posición guardada y `-o/--once` ejecuta
+  solo su comando. Son incompatibles entre sí. Con el estado no válido: `❌ Error: el estado no apunta a ninguna línea
+  válida: lanza bash-resume sin -y/-o para elegirla` y código 1. No necesitan terminal (sirven por `ssh` sin `-t` o en scripts).
+- **Sin terminal y sin flags** (stdin o stdout no son una terminal: tubería, salida redirigida, `ssh` sin `-t`):
+  `❌ Error: bash-resume necesita una terminal interactiva (o usa -y/-o)` y código 1.
+- Si se cierra la entrada (Ctrl+D) en una pregunta de rutas: `❌ Error: entrada cerrada` y código 1.
 - Los errores de lectura o escritura de ficheros indican la ruta (por ejemplo `…/steps/02-x: stream did not contain valid UTF-8`).
 - **Código de salida:** 1 si un comando falló (o por un error de E/S); 0 en el resto de casos (terminado, parada `#.`, una vez, salir).
 
-### 7.2 Menú (TUI) **[cambio]**
+### 7.2 Menú y confirmación (TUI) **[cambio]**
 
-En Python eran dos menús curses encadenados más una pregunta de confirmación. Ahora es una sola pantalla:
+```
+ Workdir: /opt/odoo/doodba-20  ·  Pasos: ~/migr/steps  ·  ● estado válido
+┌ Ficheros ─────┬ 02-migrar ──────────────────────────────────────────┐
+│   01-prep     │  [001] #> MIGRANDO                                  │
+│ > ● 02-migr ┌─ ¿Ejecutar? ────────────────────────────────────────┐ │
+│   03-limp   │ Fichero  02-migrar · línea 3                        │ │
+│             │ ▶ docker compose run --rm odoo --update all …       │ │
+│             │ Workdir  /opt/odoo/doodba-20                        │ │
+│             │ Pasos    ~/migr/steps                               │ │
+│             │                                                     │ │
+│             │ [Enter] continuar  [o] una vez  [Esc] elegir otra línea  [q] salir │
+└─────────────└─────────────────────────────────────────────────────┘─┘
+ 02-migrar:3 → docker compose run … │ ↑↓/jk mover · Tab panel · Enter elegir · q salir
+```
 
-- **Panel izquierdo:** ficheros. El del estado actual va marcado con `●`.
+- **Cabecera:** directorio de trabajo, carpeta de pasos y `● estado válido` (verde) o `⚠ estado no válido: elige una línea` (amarillo).
+- **Panel izquierdo:** ficheros. El del estado guardado va marcado con `●`.
 - **Panel derecho:** líneas del fichero seleccionado, con preview en vivo, número `[001]` y color por tipo (`log` verde, `stop` rojo, `comment` gris). La línea del estado guardado sale en amarillo.
 - **Barra inferior:** `fichero:línea → comando` y la ayuda de teclas.
-- Al abrirse, el foco está en ficheros, con el fichero del estado seleccionado (si existe); el cursor de líneas está en la línea guardada si sigue teniendo el mismo comando, y si no en la primera (como en Python).
+- **Popup de confirmación** (modal, centrado): fichero y línea, comando destacado, directorio de trabajo, carpeta de pasos y teclas. Mientras está abierto, solo responde a sus teclas.
+- Al abrirse, con estado válido: popup abierto, foco en el panel de líneas y cursor en la línea guardada. Sin estado válido: foco en ficheros, con el del estado seleccionado si existe (como en Python).
 - Los ficheros se cargan todos al abrir el menú.
+
+**Navegando**
 
 | Tecla | Acción |
 |---|---|
 | `↑ ↓` / `k j` | mover (cíclico); al cambiar de fichero, el cursor de líneas vuelve a su línea guardada o a la primera |
 | `Enter` / `→` / `Tab` en ficheros | pasar al panel de líneas (no en un fichero vacío) |
 | `Esc` / `←` / `Tab` en líneas | volver al panel de ficheros |
-| `Enter` / `y` / `s` en líneas | guardar la selección en el estado y **ejecutar** |
-| `o` en líneas | guardar la selección y ejecutar **una vez** |
+| `Enter` / `y` / `s` / `o` en líneas | **abrir el popup** de confirmación con esa línea (no ejecuta) |
 | `q` (en cualquier panel) / `Esc` en ficheros | salir sin ejecutar |
 
-- **[cambio]** No se puede confirmar en un fichero vacío. En Python esto provocaba un crash (`idx=None`).
-- Ctrl+C dentro del menú equivale a `q` (en modo raw no llega como señal, sino como tecla).
-- El menú usa la pantalla alternativa de la terminal: al cerrarlo, la terminal queda como estaba.
-- Necesita una terminal interactiva: si stdin o stdout no lo son (tubería, cron…), `[M]` da `❌ Error: el menú necesita una terminal interactiva` y código 1.
+**Popup de confirmación**
+
+| Tecla | Acción |
+|---|---|
+| `Enter` / `y` / `s` | guardar la línea en el estado y **ejecutar** desde ahí |
+| `o` | guardar la línea y ejecutar **una vez** |
+| `Esc` / `m` / `n` | cerrar el popup y volver a navegar |
+| `q` | salir sin ejecutar |
+
+- **[cambio]** No se puede elegir una línea de un fichero vacío. En Python esto provocaba un crash (`idx=None`).
+- Ctrl+C dentro de la TUI equivale a `q` (en modo raw no llega como señal, sino como tecla).
+- La TUI usa la pantalla alternativa de la terminal: al cerrarla, la terminal queda como estaba.
 
 ## 8. Log (`migration.log` en el proyecto)
 
@@ -150,7 +181,7 @@ En Python eran dos menús curses encadenados más una pregunta de confirmación.
 ## 9. CLI
 
 ```
-bash-resume [WORKDIR] [-s|--steps DIR] [-p|--project DIR]
+bash-resume [WORKDIR] [-s|--steps DIR] [-p|--project DIR] [-y|--yes | -o|--once]
 ```
 
 - **[cambio]** Nombres más cortos que en Python (`execution_path` → `WORKDIR`, `--steps-path` → `--steps`). Las claves de `state.json` no cambian (D4).

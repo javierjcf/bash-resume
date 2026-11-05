@@ -3,12 +3,13 @@
 //! Este módulo separa la lógica (estado y teclas, testeable sin terminal) del dibujo con ratatui.
 
 use std::io::{self, IsTerminal};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use ratatui::crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
-use ratatui::layout::{Constraint, Layout};
+use ratatui::layout::{Constraint, Flex, Layout, Rect};
 use ratatui::style::{Color, Modifier, Style};
-use ratatui::widgets::{Block, List, ListItem, ListState, Paragraph};
+use ratatui::text::{Line as TextLine, Span};
+use ratatui::widgets::{Block, Clear, List, ListItem, ListState, Paragraph, Wrap};
 use ratatui::{DefaultTerminal, Frame};
 
 use crate::parser::{Kind, Line, list_step_files, parse_file};
@@ -74,6 +75,11 @@ pub struct Menu {
     line: usize,
     /// Posición guardada en el estado, si sigue existiendo: (fichero, línea 0-based).
     saved: Option<(usize, usize)>,
+    /// `true` mientras se muestra el popup de confirmación de la línea seleccionada.
+    confirm: bool,
+    /// Directorio de trabajo y carpeta de pasos, para mostrarlos en la cabecera y el popup.
+    workdir: Option<PathBuf>,
+    steps_dir: Option<PathBuf>,
 }
 
 impl Menu {
@@ -89,6 +95,8 @@ impl Menu {
 
     /// Abre el menú sobre `files`, con el fichero del estado seleccionado y,
     /// si su línea sigue teniendo el mismo comando, también esa línea (como en Python).
+    ///
+    /// Con una posición guardada válida, arranca con el popup de confirmación abierto sobre ella.
     pub fn new(files: Vec<StepFile>, state: &State) -> Self {
         let file = state
             .current_file
@@ -98,17 +106,38 @@ impl Menu {
         let saved = saved_position(&files, state);
         let mut menu = Self {
             files,
-            panel: Panel::Files,
+            panel: if saved.is_some() {
+                Panel::Lines
+            } else {
+                Panel::Files
+            },
             file: 0,
             line: 0,
             saved,
+            confirm: saved.is_some(),
+            workdir: state.execution_path.clone(),
+            steps_dir: state.steps_path.clone(),
         };
         menu.select_file(file);
         menu
     }
 
     /// Aplica una tecla y dice si hay que seguir, ejecutar o salir.
+    ///
+    /// Solo se ejecuta desde el popup de confirmación: navegando, elegir una línea lo abre.
     pub fn handle_key(&mut self, key: Key) -> Outcome {
+        // Popup abierto: solo cuentan sus teclas (estado "modal").
+        if self.confirm {
+            match key {
+                Key::Enter | Key::Char('y' | 's') => return self.choose(Mode::All),
+                Key::Char('o') => return self.choose(Mode::Once),
+                Key::Esc | Key::Char('m' | 'n') => self.confirm = false,
+                Key::Char('q') => return Outcome::Quit,
+                _ => {}
+            }
+            return Outcome::Stay;
+        }
+
         let files = self.files.len();
         let lines = self.current_lines().len();
         match (self.panel, key) {
@@ -124,8 +153,9 @@ impl Menu {
             (Panel::Lines, Key::Up | Key::Char('k')) => self.line = prev(self.line, lines),
             (Panel::Lines, Key::Down | Key::Char('j')) => self.line = next(self.line, lines),
             (Panel::Lines, Key::Esc | Key::Left | Key::Tab) => self.panel = Panel::Files,
-            (Panel::Lines, Key::Enter | Key::Char('y' | 's')) => return self.choose(Mode::All),
-            (Panel::Lines, Key::Char('o')) => return self.choose(Mode::Once),
+            (Panel::Lines, Key::Enter | Key::Char('y' | 's' | 'o')) if lines > 0 => {
+                self.confirm = true
+            }
 
             _ => {}
         }
@@ -167,7 +197,7 @@ impl Menu {
 pub fn choose(steps_dir: &Path, state: &State) -> io::Result<Option<Choice>> {
     if !io::stdin().is_terminal() || !io::stdout().is_terminal() {
         return Err(io::Error::other(
-            "el menú necesita una terminal interactiva",
+            "bash-resume necesita una terminal interactiva (o usa -y/-o)",
         ));
     }
     let mut menu = Menu::load(steps_dir, state)?;
@@ -200,8 +230,13 @@ fn event_loop(menu: &mut Menu, terminal: &mut DefaultTerminal) -> io::Result<Opt
 ///
 /// Solo lee el estado del menú; no decide nada (eso es `handle_key`).
 fn render(menu: &Menu, frame: &mut Frame) {
-    let [main, bar] =
-        Layout::vertical([Constraint::Min(1), Constraint::Length(1)]).areas(frame.area());
+    let [header, main, bar] = Layout::vertical([
+        Constraint::Length(1),
+        Constraint::Min(1),
+        Constraint::Length(1),
+    ])
+    .areas(frame.area());
+    frame.render_widget(Paragraph::new(header_line(menu)), header);
     let [files_area, lines_area] =
         Layout::horizontal([Constraint::Percentage(30), Constraint::Percentage(70)]).areas(main);
 
@@ -253,6 +288,106 @@ fn render(menu: &Menu, frame: &mut Frame) {
     frame.render_stateful_widget(lines_list, lines_area, &mut lines_state);
 
     frame.render_widget(Paragraph::new(status_text(menu)), bar);
+
+    if menu.confirm {
+        render_confirm(menu, frame);
+    }
+}
+
+/// Cabecera: directorio de trabajo, carpeta de pasos y si el estado guardado es válido.
+fn header_line(menu: &Menu) -> TextLine<'static> {
+    let status = if menu.saved.is_some() {
+        Span::styled("● estado válido", Style::new().fg(Color::Green))
+    } else {
+        Span::styled(
+            "⚠ estado no válido: elige una línea",
+            Style::new().fg(Color::Yellow),
+        )
+    };
+    TextLine::from(vec![
+        Span::raw(format!(
+            " Workdir: {}  ·  Pasos: {}  ·  ",
+            show_path(&menu.workdir),
+            show_path(&menu.steps_dir)
+        )),
+        status,
+    ])
+}
+
+/// Popup de confirmación centrado, encima de los paneles: qué se va a ejecutar y con qué teclas.
+fn render_confirm(menu: &Menu, frame: &mut Frame) {
+    let (Some(file), Some(line)) = (
+        menu.files.get(menu.file),
+        menu.current_lines().get(menu.line),
+    ) else {
+        return;
+    };
+    let key = |k: &'static str| {
+        Span::styled(k, Style::new().fg(Color::Cyan).add_modifier(Modifier::BOLD))
+    };
+    let label = |l: &'static str| Span::styled(l, Style::new().fg(Color::DarkGray));
+    let text = vec![
+        TextLine::from(vec![
+            label("Fichero  "),
+            Span::raw(format!("{} · línea {}", file.name, menu.line + 1)),
+        ]),
+        TextLine::from(Span::styled(
+            format!("▶ {}", line.text.trim()),
+            Style::new().fg(Color::Yellow).add_modifier(Modifier::BOLD),
+        )),
+        TextLine::from(vec![
+            label("Workdir  "),
+            Span::raw(show_path(&menu.workdir)),
+        ]),
+        TextLine::from(vec![
+            label("Pasos    "),
+            Span::raw(show_path(&menu.steps_dir)),
+        ]),
+        TextLine::default(),
+        TextLine::from(vec![
+            key("[Enter]"),
+            Span::raw(" continuar   "),
+            key("[o]"),
+            Span::raw(" una vez   "),
+            key("[Esc]"),
+            Span::raw(" elegir otra línea   "),
+            key("[q]"),
+            Span::raw(" salir"),
+        ]),
+    ];
+
+    // Alto: 2 de borde + 5 líneas fijas + las que ocupe el comando al partirse.
+    let area = frame.area();
+    let width = area.width.saturating_sub(4).min(90);
+    let inner = usize::from(width.saturating_sub(2)).max(1);
+    let command_rows = (line.text.trim().chars().count() + 2).div_ceil(inner) as u16;
+    let popup = centered(area, width, 7 + command_rows);
+
+    frame.render_widget(Clear, popup);
+    let block = Block::bordered()
+        .title(" ¿Ejecutar? ")
+        .border_style(Style::new().fg(Color::Yellow));
+    frame.render_widget(
+        Paragraph::new(text).block(block).wrap(Wrap { trim: false }),
+        popup,
+    );
+}
+
+/// Ruta para mostrar, o `?` si no hay.
+fn show_path(path: &Option<PathBuf>) -> String {
+    path.as_ref()
+        .map_or("?".to_string(), |p| p.display().to_string())
+}
+
+/// Rectángulo de `width` × `height` centrado en `area` (recortado si no cabe).
+fn centered(area: Rect, width: u16, height: u16) -> Rect {
+    let [row] = Layout::vertical([Constraint::Length(height)])
+        .flex(Flex::Center)
+        .areas(area);
+    let [cell] = Layout::horizontal([Constraint::Length(width)])
+        .flex(Flex::Center)
+        .areas(row);
+    cell
 }
 
 /// Marco de un panel; el que tiene el foco, en cian.
@@ -294,7 +429,7 @@ fn line_style(kind: Kind, saved: bool) -> Style {
 
 /// Barra inferior: la línea seleccionada y la ayuda de teclas.
 fn status_text(menu: &Menu) -> String {
-    let help = "↑↓/jk mover · Tab panel · Enter/y ejecutar · o una vez · q salir";
+    let help = "↑↓/jk mover · Tab panel · Enter elegir · q salir";
     match (
         menu.files.get(menu.file),
         menu.current_lines().get(menu.line),
@@ -407,13 +542,23 @@ mod tests {
     }
 
     #[test]
-    fn opens_at_saved_position() {
+    fn opens_with_confirmation_at_saved_position() {
         let mut menu = Menu::new(files(), &state_at("03-c", 2, "#. parada"));
         assert_eq!((menu.file, menu.line, menu.saved), (2, 1, Some((2, 1))));
+        assert!(
+            menu.confirm,
+            "con estado válido, arranca con el popup abierto"
+        );
         assert_eq!(
-            press(&mut menu, &[Key::Enter, Key::Enter]),
+            press(&mut menu, &[Key::Enter]),
             run("03-c", 2, "#. parada", Mode::All)
         );
+    }
+
+    #[test]
+    fn without_saved_position_starts_browsing() {
+        let menu = Menu::new(files(), &state_at("03-c", 2, "comando que ya no está"));
+        assert!(!menu.confirm);
     }
 
     #[test]
@@ -438,7 +583,7 @@ mod tests {
     }
 
     #[test]
-    fn line_navigation_wraps_and_choose_returns_1_based_line() {
+    fn choosing_a_line_opens_the_popup_and_does_not_run() {
         let mut menu = Menu::new(files(), &State::default());
         press(&mut menu, &[Key::Enter, Key::Char('k')]);
         assert_eq!(
@@ -446,23 +591,49 @@ mod tests {
             (Panel::Lines, 2),
             "↑ desde la primera va a la última"
         );
+
         assert_eq!(
-            press(&mut menu, &[Key::Char('y')]),
+            press(&mut menu, &[Key::Enter]),
+            Outcome::Stay,
+            "navegando, Enter no ejecuta"
+        );
+        assert!(menu.confirm);
+        assert_eq!(
+            press(&mut menu, &[Key::Enter]),
             run("01-a", 3, "echo b", Mode::All)
         );
     }
 
     #[test]
-    fn once_and_spanish_yes() {
+    fn popup_keys_once_yes_and_back() {
         let mut menu = Menu::new(files(), &State::default());
+        press(&mut menu, &[Key::Tab, Key::Down, Key::Char('o')]);
+        assert!(menu.confirm, "`o` navegando también abre el popup");
         assert_eq!(
-            press(&mut menu, &[Key::Tab, Key::Down, Key::Char('o')]),
+            press(&mut menu, &[Key::Char('o')]),
             run("01-a", 2, "echo a", Mode::Once)
         );
         assert_eq!(
             press(&mut menu, &[Key::Char('s')]),
             run("01-a", 2, "echo a", Mode::All)
         );
+
+        assert_eq!(press(&mut menu, &[Key::Esc]), Outcome::Stay);
+        assert!(!menu.confirm, "Esc cierra el popup y vuelve a navegar");
+        assert_eq!(press(&mut menu, &[Key::Down]), Outcome::Stay);
+        assert_eq!(menu.line, 2, "ya navegando, las flechas mueven el cursor");
+    }
+
+    #[test]
+    fn popup_ignores_navigation_and_q_quits() {
+        let mut menu = Menu::new(files(), &state_at("01-a", 2, "echo a"));
+        assert_eq!(press(&mut menu, &[Key::Down, Key::Tab]), Outcome::Stay);
+        assert_eq!(
+            (menu.line, menu.panel, menu.confirm),
+            (1, Panel::Lines, true),
+            "no se mueve"
+        );
+        assert_eq!(press(&mut menu, &[Key::Char('q')]), Outcome::Quit);
     }
 
     #[test]
@@ -525,8 +696,9 @@ mod tests {
 
     #[test]
     fn render_shows_files_lines_and_status_bar() {
-        let menu = Menu::new(files(), &state_at("03-c", 2, "#. parada"));
-        let screen = draw(&menu, 100, 8);
+        let mut menu = Menu::new(files(), &state_at("03-c", 2, "#. parada"));
+        press(&mut menu, &[Key::Esc]); // cerrar el popup para ver los paneles completos
+        let screen = draw(&menu, 100, 9);
         assert!(
             screen.contains("● 03-c"),
             "marca del fichero guardado:\n{screen}"
@@ -539,7 +711,30 @@ mod tests {
             screen.contains("03-c:2 → #. parada"),
             "barra inferior:\n{screen}"
         );
+        assert!(screen.contains("● estado válido"), "cabecera:\n{screen}");
         assert!(screen.contains("02-vacio"), "{screen}");
+    }
+
+    #[test]
+    fn render_shows_confirmation_popup() {
+        let mut state = state_at("03-c", 2, "#. parada");
+        state.execution_path = Some(PathBuf::from("/opt/odoo/doodba"));
+        let screen = draw(&Menu::new(files(), &state), 100, 14);
+        assert!(screen.contains("¿Ejecutar?"), "{screen}");
+        assert!(
+            screen.contains("▶ #. parada"),
+            "comando destacado:\n{screen}"
+        );
+        assert!(screen.contains("03-c · línea 2"), "{screen}");
+        assert!(screen.contains("/opt/odoo/doodba"), "workdir:\n{screen}");
+        assert!(screen.contains("[Esc] elegir otra línea"), "{screen}");
+    }
+
+    #[test]
+    fn render_warns_when_state_is_not_valid() {
+        let screen = draw(&Menu::new(files(), &State::default()), 100, 9);
+        assert!(screen.contains("⚠ estado no válido"), "{screen}");
+        assert!(!screen.contains("¿Ejecutar?"), "{screen}");
     }
 
     #[test]

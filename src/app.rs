@@ -53,7 +53,12 @@ pub fn run(args: Args) -> io::Result<ExitCode> {
     state.steps_path = Some(steps.clone());
     state.save()?;
 
-    let action = choose_action(&mut state, &steps, &mut input, &mut output, menu::choose)?;
+    let flag = match (args.yes, args.once) {
+        (true, _) => Some(Mode::All),
+        (_, true) => Some(Mode::Once),
+        _ => None,
+    };
+    let action = choose_action(&mut state, &steps, flag, menu::choose)?;
     // Se suelta stdin antes de ejecutar: a partir de aquí el teclado es para los comandos.
     drop(input);
 
@@ -146,63 +151,31 @@ fn pick_dir(
     }
 }
 
-/// Pregunta qué hacer hasta obtener una respuesta válida (spec §7.1).
+/// Decide qué ejecutar (spec §7).
 ///
-/// Si el estado es válido, ofrece continuar desde él; si no, obliga a elegir un punto en el menú.
-/// `open_menu` abre el menú (en el programa, `menu::choose`; en los tests, uno falso).
+/// Con `-y`/`-o` (`flag`) se continúa desde el estado sin abrir el menú, y el estado tiene que ser válido.
+/// Sin flags se abre el menú, donde siempre se confirma en un popup antes de ejecutar.
+/// `open_menu` es `menu::choose` en el programa y uno falso en los tests.
 fn choose_action(
     state: &mut State,
     steps: &Path,
-    input: &mut impl BufRead,
-    output: &mut impl Write,
-    mut open_menu: impl FnMut(&Path, &State) -> io::Result<Option<Choice>>,
+    flag: Option<Mode>,
+    open_menu: impl FnOnce(&Path, &State) -> io::Result<Option<Choice>>,
 ) -> io::Result<Action> {
-    loop {
+    if let Some(mode) = flag {
         if state.is_valid(steps) {
-            writeln!(output, "> Resumen de ejecución pendiente")?;
-            write!(output, "{state}")?;
-            let answer = ask(
-                input,
-                output,
-                "[Y/S] Continuar | [M] Menú | [O] Una vez | [N] Salir:",
-            )?;
-            match answer.to_lowercase().as_str() {
-                "y" | "s" => return Ok(Action::Run(Mode::All)),
-                "o" => return Ok(Action::Run(Mode::Once)),
-                "n" => return Ok(Action::Exit),
-                "m" => {}
-                _ => {
-                    writeln!(output, "Opción no válida.")?;
-                    continue;
-                }
-            }
-        } else {
-            writeln!(
-                output,
-                "El estado previo no es válido o el comando ya no existe."
-            )?;
-            let answer = ask(input, output, "[M] Abrir menú | [N] Salir:")?;
-            match answer.to_lowercase().as_str() {
-                "m" => {}
-                "n" => return Ok(Action::Exit),
-                _ => {
-                    writeln!(
-                        output,
-                        "Opción no válida. Use 'M' para menú o 'N' para salir."
-                    )?;
-                    continue;
-                }
-            }
+            return Ok(Action::Run(mode));
         }
-
-        // Aquí solo se llega con "M". Elegir en el menú ya confirma (no se vuelve a preguntar, D5).
-        return match open_menu(steps, state)? {
-            Some(choice) => {
-                state.set_position(&choice.file, &choice.command, choice.line)?;
-                Ok(Action::Run(choice.mode))
-            }
-            None => Ok(Action::Exit),
-        };
+        return Err(io::Error::other(
+            "el estado no apunta a ninguna línea válida: lanza bash-resume sin -y/-o para elegirla",
+        ));
+    }
+    match open_menu(steps, state)? {
+        Some(choice) => {
+            state.set_position(&choice.file, &choice.command, choice.line)?;
+            Ok(Action::Run(choice.mode))
+        }
+        None => Ok(Action::Exit),
     }
 }
 
@@ -211,26 +184,6 @@ mod tests {
     use super::*;
     use crate::testutil::temp_dir;
     use std::fs;
-
-    /// Ejecuta `choose_action` con `typed` como lo que escribe el usuario y `menu` como lo que
-    /// devolvería el menú. Devuelve la acción y lo mostrado.
-    fn choose_with(
-        state: &mut State,
-        steps: &Path,
-        typed: &str,
-        menu: Option<Choice>,
-    ) -> io::Result<(Action, String)> {
-        let mut input = typed.as_bytes();
-        let mut output = Vec::new();
-        let fake_menu = |_: &Path, _: &State| Ok(menu.clone());
-        let action = choose_action(state, steps, &mut input, &mut output, fake_menu)?;
-        Ok((action, String::from_utf8_lossy(&output).into_owned()))
-    }
-
-    /// Como `choose_with`, con un menú que sale sin elegir.
-    fn choose(state: &mut State, steps: &Path, typed: &str) -> io::Result<(Action, String)> {
-        choose_with(state, steps, typed, None)
-    }
 
     /// Carpeta con `steps/01-a` y un estado (en disco) que apunta a su segunda línea.
     fn project(name: &str) -> io::Result<(PathBuf, State)> {
@@ -242,52 +195,25 @@ mod tests {
         Ok((dir, state))
     }
 
-    #[test]
-    fn valid_state_offers_continue_once_and_exit() -> io::Result<()> {
-        let (dir, mut state) = project("app-valid")?;
-        let steps = dir.join("steps");
-
-        let (action, shown) = choose(&mut state, &steps, "y\n")?;
-        assert_eq!(action, Action::Run(Mode::All));
-        assert!(
-            shown.contains("Comando a ejecutar      : echo hola"),
-            "{shown}"
-        );
-        assert_eq!(choose(&mut state, &steps, "S\n")?.0, Action::Run(Mode::All));
-        assert_eq!(
-            choose(&mut state, &steps, "o\n")?.0,
-            Action::Run(Mode::Once)
-        );
-        assert_eq!(choose(&mut state, &steps, "n\n")?.0, Action::Exit);
-        fs::remove_dir_all(&dir)
+    /// Menú falso que no debe abrirse.
+    fn no_menu(_: &Path, _: &State) -> io::Result<Option<Choice>> {
+        panic!("con -y/-o no se abre el menú")
     }
 
     #[test]
-    fn invalid_answer_asks_again() -> io::Result<()> {
-        let (dir, mut state) = project("app-again")?;
-        let (action, shown) = choose(&mut state, &dir.join("steps"), "quizá\ny\n")?;
-        assert_eq!(action, Action::Run(Mode::All));
-        assert!(shown.contains("Opción no válida."), "{shown}");
-        fs::remove_dir_all(&dir)
-    }
-
-    #[test]
-    fn invalid_state_requires_menu() -> io::Result<()> {
-        let (dir, mut state) = project("app-invalid")?;
-        let steps = dir.join("steps");
-        state.set_position("01-a", "comando que ya no existe", 2)?;
-
-        assert_eq!(choose(&mut state, &steps, "n\n")?.0, Action::Exit);
-
-        // "y" no vale con estado inválido; "m" abre el menú, que elige 01-a:1 en modo una vez.
+    fn menu_choice_is_saved_and_runs_in_its_mode() -> io::Result<()> {
+        let (dir, mut state) = project("app-menu")?;
         let picked = Choice {
             file: "01-a".to_string(),
             line: 1,
             command: "#> inicio".to_string(),
             mode: Mode::Once,
         };
-        let (action, shown) = choose_with(&mut state, &steps, "y\nm\n", Some(picked))?;
-        assert!(shown.contains("Use 'M' para menú"), "{shown}");
+
+        let action = choose_action(&mut state, &dir.join("steps"), None, |_, _| {
+            Ok(Some(picked))
+        })?;
+
         assert_eq!(action, Action::Run(Mode::Once));
         assert_eq!(
             state.last_line_index,
@@ -299,20 +225,44 @@ mod tests {
     }
 
     #[test]
-    fn leaving_the_menu_without_choosing_exits() -> io::Result<()> {
+    fn leaving_the_menu_exits_without_changing_the_state() -> io::Result<()> {
         let (dir, mut state) = project("app-menu-quit")?;
-        let (action, _) = choose(&mut state, &dir.join("steps"), "m\n")?;
+        let action = choose_action(&mut state, &dir.join("steps"), None, |_, _| Ok(None))?;
         assert_eq!(action, Action::Exit);
-        assert_eq!(state.last_line_index, Some(2), "el estado no cambia");
+        assert_eq!(state.last_line_index, Some(2));
         fs::remove_dir_all(&dir)
     }
 
     #[test]
-    fn closed_input_is_an_error() -> io::Result<()> {
-        let (dir, mut state) = project("app-eof")?;
-        let err = choose(&mut state, &dir.join("steps"), "").unwrap_err();
-        assert_eq!(err.kind(), io::ErrorKind::UnexpectedEof);
+    fn yes_and_once_skip_the_menu() -> io::Result<()> {
+        let (dir, mut state) = project("app-flags")?;
+        let steps = dir.join("steps");
+        assert_eq!(
+            choose_action(&mut state, &steps, Some(Mode::All), no_menu)?,
+            Action::Run(Mode::All)
+        );
+        assert_eq!(
+            choose_action(&mut state, &steps, Some(Mode::Once), no_menu)?,
+            Action::Run(Mode::Once)
+        );
         fs::remove_dir_all(&dir)
+    }
+
+    #[test]
+    fn flags_with_invalid_state_are_an_error() -> io::Result<()> {
+        let (dir, mut state) = project("app-flags-invalid")?;
+        state.set_position("01-a", "comando que ya no existe", 2)?;
+        let err =
+            choose_action(&mut state, &dir.join("steps"), Some(Mode::All), no_menu).unwrap_err();
+        assert!(err.to_string().contains("sin -y/-o"), "{err}");
+        fs::remove_dir_all(&dir)
+    }
+
+    #[test]
+    fn closed_input_is_an_error() {
+        let mut input: &[u8] = b"";
+        let err = pick_dir(&[None], "¿Ruta?", &mut input, &mut Vec::new()).unwrap_err();
+        assert_eq!(err.kind(), io::ErrorKind::UnexpectedEof);
     }
 
     #[test]
