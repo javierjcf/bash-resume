@@ -1,7 +1,7 @@
 //! Ejecutar un comando de shell en el directorio de trabajo (spec §4).
 
 use std::path::Path;
-use std::process::Command;
+use std::process::{Command, Stdio};
 use std::time::{Duration, Instant};
 
 use super::signals;
@@ -13,7 +13,9 @@ const BASH_OPTIONS: [&str; 4] = ["-e", "-u", "-o", "pipefail"];
 
 /// Ejecuta `cmd` con `bash -euo pipefail -c` dentro de `workdir` y devuelve si terminó bien.
 ///
-/// La salida del comando va directamente a la terminal (stdio heredado).
+/// La salida del comando va directamente a la terminal (stdout y stderr heredados), pero **no** el teclado:
+/// stdin es `/dev/null` (D14). Así ningún comando puede poner la terminal en modo raw (como `docker compose run`
+/// con TTY) y Ctrl+C siempre llega como señal a bash-resume, que lo trata como fallo aunque el comando salga con 0.
 pub fn execute(cmd: &str, workdir: &Path, log: &Logger) -> bool {
     log.info(&format!("Ejecutando comando: {cmd}"));
     let start = Instant::now();
@@ -26,6 +28,7 @@ pub fn execute(cmd: &str, workdir: &Path, log: &Logger) -> bool {
         .arg("-c")
         .arg(cmd)
         .current_dir(workdir)
+        .stdin(Stdio::null())
         .status();
 
     let interrupted = signals::end_command();
@@ -168,6 +171,19 @@ mod tests {
         let (dir, log) = setup("exec-bashisms")?;
         assert!(execute(
             "[[ -d . ]] && arr=(a b) && test \"${arr[1]}\" = b",
+            &dir,
+            &log
+        ));
+        fs::remove_dir_all(&dir)
+    }
+
+    #[test]
+    fn stdin_is_dev_null() -> io::Result<()> {
+        let (dir, log) = setup("exec-stdin")?;
+        // `cat` termina al instante con stdin vacío; con el teclado heredado se quedaría esperando.
+        assert!(execute("cat", &dir, &log));
+        assert!(execute(
+            "[ \"$(readlink /proc/self/fd/0)\" = /dev/null ]",
             &dir,
             &log
         ));
