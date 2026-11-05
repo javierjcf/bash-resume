@@ -117,7 +117,7 @@ cargo run -- -p demo 2>&1 | less -R    # sin terminal → el log sale sin colore
 
 ## Experimentos rápidos
 
-- **Rompe un test:** cambia un `Kind::Log` esperado en `src/parser.rs`, ejecuta `cargo test` y lee el `left`/`right`.
+- **Rompe un test:** cambia un `Kind::Log` esperado en `src/engine/parser.rs`, ejecuta `cargo test` y lee el `left`/`right`.
 - **Rompe la exhaustividad:** quita la rama `_ =>` de `classify` y ejecuta `cargo check` → `E0004`.
 - **Quita un derive:** borra `Debug` de `Kind`, ejecuta `cargo check` y lee la sugerencia del compilador.
 - **Copy frente a move:** añade `Copy` al `derive` de `Line` y mira por qué no se puede.

@@ -6,9 +6,9 @@ use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
 
+use bash_resume::engine::runner::{Mode, Outcome, run_steps};
+use bash_resume::engine::state::State;
 use bash_resume::log::Logger;
-use bash_resume::runner::{Mode, Outcome, run_steps};
-use bash_resume::state::State;
 
 /// Proyecto de prueba en un directorio temporal: `steps/`, `state.json`, `migration.log` y `onerror`.
 struct Project {

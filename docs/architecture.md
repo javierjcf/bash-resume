@@ -16,38 +16,54 @@ Es el patrón recomendado en el Rust Book (RB 12.3, *Separation of Concerns for 
 
 ## Mapa de módulos
 
-Estructura **plana**: un fichero por módulo. Con ~600 líneas no hacen falta subcarpetas.
+Organizado **por capas**: la lógica (`engine`), la ejecución de comandos (`exec`) y la interfaz (`tui`), cada una
+en su carpeta; lo que une todo (`app`, `cli`) y lo transversal (`log`) quedan en la raíz.
 
 ```
 src/
-├── main.rs     binario: parsea los args con clap, llama a app::run y devuelve el código de salida
-├── lib.rs      declara los módulos (pub mod …) y el helper with_path para los errores
-├── cli.rs      struct Args (clap)
-├── app.rs      flujo principal: resolver rutas, abrir la TUI (o -y/-o) y lanzar el runner
-├── parser.rs   tipos de línea, clasificar y leer ficheros de pasos
-├── state.rs    state.json
-├── log.rs      logger a fichero y consola
-├── exec.rs     ejecutar un comando (terminal heredada, código de salida, Ctrl+C)
-├── runner.rs   recorrido de los pasos, stop, once y onerror
-├── menu.rs     TUI: lógica (Menu, handle_key, popup de confirmación) y dibujo con ratatui (render, choose)
-└── testutil.rs utilidades para los tests unitarios (temp_dir); solo con `cargo test`
+├── main.rs          binario: parsea los args con clap, llama a app::run y devuelve el código de salida
+├── lib.rs           declara los módulos (pub mod …) y el helper with_path para los errores
+├── cli.rs           struct Args (clap)
+├── app.rs           flujo principal: resolver rutas, abrir la TUI (o -y/-o) y lanzar el recorrido
+├── log.rs           logger a fichero y consola
+├── engine.rs        ── lógica, sin terminal ni interfaz
+├── engine/
+│   ├── parser.rs    tipos de línea, clasificar y leer ficheros de pasos
+│   ├── state.rs     state.json
+│   └── runner.rs    recorrido de los pasos, stop, once y onerror
+├── exec.rs          ── ejecutar comandos (expone `execute`)
+├── exec/
+│   ├── command.rs   lanzar bash -euo pipefail, código de salida y tiempo
+│   └── signals.rs   Ctrl+C durante un comando (OnceLock + atómicos)
+├── tui.rs           ── interfaz de terminal (expone `choose` y `Choice`): bucle de eventos
+├── tui/
+│   ├── menu.rs      estado y teclas (Menu, handle_key, popup de confirmación); testeable sin terminal
+│   ├── render.rs    dibujo con ratatui (cabecera, paneles, barra, popup)
+│   ├── keys.rs      teclas de crossterm → nuestro `Key`
+│   └── testdata.rs  datos compartidos por los tests de la TUI (solo con `cargo test`)
+└── testutil.rs      utilidades para los tests unitarios (temp_dir); solo con `cargo test`
 tests/
-└── runner.rs   tests de integración (pasos de ejemplo de principio a fin)
+└── runner.rs        tests de integración (pasos de ejemplo de principio a fin)
 ```
+
+Cada carpeta tiene un fichero del mismo nombre en el nivel superior (`engine.rs`, `exec.rs`, `tui.rs`) que declara
+sus submódulos y reexporta lo que se usa desde fuera (`pub use command::execute;`). Así el resto del código no
+depende de cómo está repartida la carpeta por dentro. No se usa `mod.rs` (forma antigua, equivalente).
 
 ### Quién usa a quién (las dependencias van siempre hacia abajo)
 
 ```
 main.rs ──► cli, app
-app ──► state, runner, menu (choose, pasado como closure), log
-runner ──► parser, state, exec, log
-menu ──► parser, state, runner (Mode)
+app ──► engine (state, runner), tui (choose, pasado como closure), log
+tui ──► engine (parser, state, runner::Mode)
+engine::runner ──► engine::parser, engine::state, exec, log
+engine::state ──► engine::parser
 exec ──► log
-state ──► parser
-parser, log ──► (solo std, crates externos y with_path)
+engine::parser, log ──► (solo std, crates externos y with_path)
 ```
 
-Regla: **no hay ciclos**. Los módulos de abajo (`parser`, `log`, `state`) no conocen a los de arriba. Así se pueden testear aislados.
+Regla: **no hay ciclos**, y **`engine` no conoce `tui` ni `app`**: la lógica no sabe que existe una interfaz.
+Así se puede testear aislada.
 
 ## Módulos e imports: cómo funciona en Rust
 
@@ -55,13 +71,13 @@ En Rust, **los ficheros no se importan solos**. Hay que declarar el módulo, com
 
 ```rust
 // lib.rs
-pub mod parser;   // "existe el módulo parser" → cargo busca src/parser.rs
+pub mod engine;   // "existe el módulo engine" → cargo busca src/engine.rs (y sus hijos en src/engine/)
 ```
 
 Para usar algo de otro módulo:
 
 ```rust
-use crate::parser::Kind;           // `crate` = raíz de NUESTRO crate (lib.rs)
+use crate::engine::parser::Kind;   // `crate` = raíz de NUESTRO crate (lib.rs)
 use std::path::{Path, PathBuf};    // librería estándar
 use serde::Deserialize;            // crate externo (declarado en Cargo.toml)
 
@@ -72,8 +88,8 @@ use bash_resume::cli::Args;
 **Visibilidad**: todo es **privado por defecto**, y `pub` lo hace visible fuera del módulo. La regla es hacer
 `pub` solo lo que otro módulo necesita: es la API del módulo, y lo demás son detalles internos (RB 7.3).
 
-Si un módulo creciera mucho, pasaría a ser una carpeta: `src/menu.rs` + `src/menu/render.rs`
-(con `mod render;` dentro de `menu.rs`). No lo haremos salvo que haga falta.
+Si un fichero de una carpeta creciera mucho, se parte dentro de ella (como `tui/` en `menu.rs`, `render.rs` y
+`keys.rs`), sin cambiar lo que la carpeta expone.
 
 ## Tests
 

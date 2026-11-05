@@ -7,7 +7,7 @@ use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 
-use crate::parser::parse_file;
+use super::parser::parse_file;
 use crate::with_path;
 
 /// Estado de ejecución. El formato JSON es compatible con la versión Python (D4).

@@ -5,10 +5,10 @@ use std::path::{self, Path, PathBuf};
 use std::process::ExitCode;
 
 use crate::cli::Args;
+use crate::engine::runner::{Mode, Outcome, run_steps};
+use crate::engine::state::State;
 use crate::log::Logger;
-use crate::menu::{self, Choice};
-use crate::runner::{Mode, Outcome, run_steps};
-use crate::state::State;
+use crate::tui::{self, Choice};
 
 /// Lo que el usuario decide hacer.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -58,7 +58,7 @@ pub fn run(args: Args) -> io::Result<ExitCode> {
         (_, true) => Some(Mode::Once),
         _ => None,
     };
-    let action = choose_action(&mut state, &steps, flag, menu::choose)?;
+    let action = choose_action(&mut state, &steps, flag, tui::choose)?;
     // Se suelta stdin antes de ejecutar: a partir de aquí el teclado es para los comandos.
     drop(input);
 
