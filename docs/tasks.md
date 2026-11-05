@@ -19,6 +19,7 @@ Cada tarea deja el proyecto **compilando y con los tests en verde**. Las referen
 | T11 | [x] | `menu`: estado y teclas |
 | T12 | [x] | `menu`: render ratatui |
 | T13 | [x] | README y cierre de la documentación |
+| T14 | [x] | El directorio actual es el proyecto (`-p/--project`) |
 
 ---
 
@@ -90,3 +91,8 @@ Cada tarea deja el proyecto **compilando y con los tests en verde**. Las referen
 ### T13 — README y cierre de la documentación
 - **Hace:** `README.md` de uso (inicio rápido, preguntas, menú, formato de pasos, qué pasa cuando…, compilar e instalar con musl, diferencias con pyBashResume) y repaso de los docs. El menú ya quedó conectado en T12.
 - **Pendiente (lo hace Javier):** verificación frente a la versión Python alternando las dos sobre el mismo `state.json`, y la compilación/distribución del binario.
+
+### T14 — El directorio actual es el proyecto (D11)
+- **Hace:** `-p/--project` sustituye a `-H/--home` (sin variable de entorno). Sin `-p`, el proyecto es el directorio actual. Si no hay `state.json`, se avisa y se crea; después se preguntan las rutas que falten. Se elimina la carpeta de pasos por defecto (`migration-steps`).
+- **Aceptación:** `bash-resume` a secas en una carpeta vacía avisa, crea `state.json` y pregunta pasos y workdir; al relanzar no pregunta rutas; `-p /no/existe` da error y código 1.
+- **Rust:** `std::env::current_dir`, `Option<&Path>` con `match`, `io::Error::other`, `Path::exists`.

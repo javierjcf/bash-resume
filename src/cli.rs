@@ -11,13 +11,13 @@ pub struct Args {
     /// Directorio donde se ejecutan los comandos (por defecto, el guardado en el estado)
     pub workdir: Option<PathBuf>,
 
-    /// Carpeta con los ficheros de pasos (por defecto, la guardada o `migration-steps`)
+    /// Carpeta con los ficheros de pasos (por defecto, la guardada en el estado)
     #[arg(short, long, value_name = "DIR")]
     pub steps: Option<PathBuf>,
 
-    /// Directorio con state.json, migration.log y onerror
-    #[arg(short = 'H', long, value_name = "DIR", env = "BASH_RESUME_HOME")]
-    pub home: Option<PathBuf>,
+    /// Carpeta del proyecto: state.json, migration.log y onerror (por defecto, el directorio actual)
+    #[arg(short, long, value_name = "DIR")]
+    pub project: Option<PathBuf>,
 }
 
 #[cfg(test)]
@@ -35,26 +35,31 @@ mod tests {
         let args = Args::try_parse_from(["bash-resume"]).unwrap();
         assert_eq!(args.workdir, None);
         assert_eq!(args.steps, None);
-        // `home` no se comprueba: depende de si BASH_RESUME_HOME está definida en el entorno.
+        assert_eq!(args.project, None);
     }
 
     #[test]
     fn parses_short_flags() {
-        let args = Args::try_parse_from(["bash-resume", "/w", "-s", "/s", "-H", "/h"]).unwrap();
+        let args = Args::try_parse_from(["bash-resume", "/w", "-s", "/s", "-p", "/p"]).unwrap();
         assert_eq!(args.workdir, Some(PathBuf::from("/w")));
         assert_eq!(args.steps, Some(PathBuf::from("/s")));
-        assert_eq!(args.home, Some(PathBuf::from("/h")));
+        assert_eq!(args.project, Some(PathBuf::from("/p")));
     }
 
     #[test]
     fn parses_long_flags() {
-        let args = Args::try_parse_from(["bash-resume", "--steps", "/s", "--home", "/h"]).unwrap();
+        let args =
+            Args::try_parse_from(["bash-resume", "--steps", "/s", "--project", "/p"]).unwrap();
         assert_eq!(args.steps, Some(PathBuf::from("/s")));
-        assert_eq!(args.home, Some(PathBuf::from("/h")));
+        assert_eq!(args.project, Some(PathBuf::from("/p")));
     }
 
     #[test]
     fn rejects_unknown_flag() {
         assert!(Args::try_parse_from(["bash-resume", "--steps-path", "/s"]).is_err());
+        assert!(
+            Args::try_parse_from(["bash-resume", "--home", "/h"]).is_err(),
+            "--home ya no existe"
+        );
     }
 }

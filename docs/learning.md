@@ -442,3 +442,28 @@ Rust Book: <https://doc.rust-lang.org/book/> (abreviado **RB**, por ejemplo RB 7
 - `cargo build --release` optimiza (binario de ~2 MB, con todas las dependencias dentro). `cargo install --path .` compila en release y copia a `~/.cargo/bin`.
 - Rust enlaza los crates **estáticamente**, pero la librería C del sistema (glibc) se enlaza **dinámicamente**: el binario pide la glibc con la que se compiló o una más nueva (`objdump -T bin | grep GLIBC_`, `ldd bin`).
 - Target `x86_64-unknown-linux-musl`: enlaza también la librería C (musl) dentro → binario 100 % estático. Viable aquí porque ninguna dependencia compila código C (`libc` y `linux-raw-sys` son solo declaraciones en Rust).
+
+---
+
+## T14 — El directorio actual es el proyecto
+
+**`std::env::current_dir()`**
+- Devuelve el directorio desde el que se lanzó el programa (`io::Result<PathBuf>`: puede fallar si ese directorio ya no existe). Es el `os.getcwd()` de Python.
+- Por la decisión D8, bash-resume **lee** el directorio actual pero nunca lo **cambia**: cada comando recibe su `current_dir` propio.
+
+**`match` sobre `Option` con guardas**
+```rust
+let dir = match arg {
+    Some(dir) if dir.is_dir() => dir.to_path_buf(),   // -p válido
+    Some(dir) => return Err(io::Error::other(…)),      // -p que no es un directorio
+    None => std::env::current_dir()?,                  // sin -p
+};
+```
+- Tres casos en tres ramas, en orden: la guarda `if` separa el `Some` válido del inválido.
+- `io::Error::other(texto)` crea un error propio, que se propaga con `?` y `main` imprime como `❌ Error: …`.
+
+**Tests que dependen del entorno**
+- `cargo test` ejecuta los tests en la raíz del crate, así que `project_dir(None)` se compara con `current_dir()` y `Path::new("src")` existe. Lo que depende de dónde lance el usuario el programa (el aviso de proyecto nuevo) se prueba a mano.
+
+**Quitar código también es diseño**
+- Se eliminan el valor por defecto `migration-steps`, la variable `BASH_RESUME_HOME` y el feature `env` de clap: menos casos, menos dependencias y un comportamiento más fácil de explicar.

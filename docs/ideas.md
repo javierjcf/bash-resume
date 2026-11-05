@@ -30,7 +30,7 @@ Nada de esto está decidido: si se hace una, pasa a [tasks.md](tasks.md), con su
 |---|---|---|
 | **Relanzar sin preguntar: `-y/--yes` y `-o/--once`** | `-y` continúa desde el estado guardado sin preguntar; `-o` ejecuta un solo comando sin preguntar. Si el estado no es válido o falta una ruta, **error** (código 1) en vez de abrir el menú o preguntar: sin terminal no hay a quién preguntar. Tras arreglar un fallo basta con `bash-resume -y`, y vale para ejecuciones desatendidas. Encaje: dos flags en `cli.rs`, un atajo en `app::run` antes de `choose_action` y `pick_dir` sin preguntar cuando hay flag. ~40 líneas y tests | Bajo |
 | **Pantalla única: resumen + menú en la TUI** (ver detalle abajo) | Sustituye la pregunta de texto `Y/M/O/N` por la TUI abierta directamente en la línea guardada: se ve el contexto y se decide con una tecla | Bajo-medio |
-| **Tiempos por comando, por fichero y total** | Ya se registra `Tiempo de ejecución` de cada comando (`exec.rs`). Faltaría el tiempo de cada fichero al salir de él y el total de la ejecución al terminar, por el logger (pantalla y `migration.log`). Si termina con éxito el último fichero, un resumen con la tabla por fichero y el total. Encaje: `Instant` en `runner.rs` alrededor de cada fichero y de `run_steps`, reutilizando `format_duration`. **Limitación:** son tiempos de *esta* ejecución. Si hubo un fallo y se reanudó, el resumen no cubre lo anterior y no es representativo; es útil sobre todo con una migración ya ensayada que va de principio a fin. **Pendiente de decidir:** acumularlos entre reanudaciones (¿en `state.json`, o en un fichero aparte del home?), poniéndolos a cero al empezar desde el principio. Relacionada con *Historial de ejecución* y *Progreso* | Bajo (sin acumular) / Medio (acumulando) |
+| **Tiempos por comando, por fichero y total** | Ya se registra `Tiempo de ejecución` de cada comando (`exec.rs`). Faltaría el tiempo de cada fichero al salir de él y el total de la ejecución al terminar, por el logger (pantalla y `migration.log`). Si termina con éxito el último fichero, un resumen con la tabla por fichero y el total. Encaje: `Instant` en `runner.rs` alrededor de cada fichero y de `run_steps`, reutilizando `format_duration`. **Limitación:** son tiempos de *esta* ejecución. Si hubo un fallo y se reanudó, el resumen no cubre lo anterior y no es representativo; es útil sobre todo con una migración ya ensayada que va de principio a fin. **Pendiente de decidir:** acumularlos entre reanudaciones (¿en `state.json`, o en un fichero aparte del proyecto?), poniéndolos a cero al empezar desde el principio. Relacionada con *Historial de ejecución* y *Progreso* | Bajo (sin acumular) / Medio (acumulando) |
 | **`[C] Continuar tras la parada`** en la pregunta inicial cuando el estado está en una línea `#.` | Quita la rareza de la parada sin cambiar el comportamiento por defecto (no hace falta ir al menú) | Muy bajo |
 | **Expandir `~`** en las rutas que se escriben en las preguntas | Hoy `~/migr` da "Ruta inválida" (el shell solo expande `~` en los argumentos, no en lo que se teclea) | Muy bajo |
 | **Progreso**: `[12/40]` en el log y en el resumen | Saber cuánto queda en una migración larga | Bajo |
@@ -90,7 +90,7 @@ guardada.
 | **Más hooks junto a `onerror`**: `onstop` (al llegar a un `#.`) y `onfinish` (al terminar todo) | Avisos por Telegram al terminar o al llegar a una parada, sin escribir `telegram-send` en los pasos | Bajo |
 | **`--list` / `--dry-run`**: mostrar qué se ejecutaría desde la posición actual, sin ejecutar | Revisar el plan antes de una migración real | Bajo |
 | **`cd` persistente** con una marca `#cd dir` (cambia el directorio de las líneas siguientes) | Evitar repetir `cd odoo/custom && …` en muchas líneas | Bajo (solo el runner) |
-| **Variables por proyecto**: un fichero `env` en el home que se carga en cada comando | Nombres de BBDD, versiones… sin repetirlos; encaja bien con `-u` de bash | Bajo |
+| **Variables por proyecto**: un fichero `env` en el proyecto que se carga en cada comando | Nombres de BBDD, versiones… sin repetirlos; encaja bien con `-u` de bash | Bajo |
 | **Historial de ejecución** en `state.json` (comando, fecha, duración, resultado) | "¿Dónde falló la última vez?" y estimar cuánto tarda cada paso. Python ignora las claves extra, así que sigue siendo compatible | Medio |
 | **Menú: marcas de hecho/pendiente, búsqueda con `/`, `Inicio`/`Fin`/`RePág`** | Moverse rápido por ficheros largos y ver por dónde va la ejecución | Medio |
 | **Separador de ejecución en el log** (`===== inicio: fecha, desde 02-migrar:3 =====`) | El log acumulado se lee mejor cuando hay muchas ejecuciones | Muy bajo |
@@ -100,7 +100,7 @@ guardada.
 
 | Idea | Comentario |
 |---|---|
-| `bash-resume init DIR` | Crear el home con `steps/`, un `onerror` de ejemplo y un README de los pasos |
+| `bash-resume init DIR` | Crear el proyecto con una carpeta de pasos, un `onerror` de ejemplo y un README de los pasos |
 | Timeout por paso (`#timeout 30m`) | Para pasos que se pueden colgar; habría que matar el grupo de procesos |
 | Pasos condicionales o reintentos automáticos (`#retry 3`) | Útil para pasos de red inestables, pero acerca bash-resume a un sistema de tareas: valorar si compensa la complejidad |
 | Ejecución remota (`--ssh host`) | Hoy se puede hacer con `ssh host bash-resume …`; integrarlo no aporta mucho |

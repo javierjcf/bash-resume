@@ -43,28 +43,29 @@ install -m 755 bash-resume-v0.1.0-x86_64-unknown-linux-musl/bash-resume ~/.local
 ## Inicio rápido
 
 ```bash
-mkdir -p ~/migr/steps                              # home del proyecto + sus pasos
-echo 'echo hola' > ~/migr/steps/01-saludo
-bash-resume /opt/odoo/doodba -s ~/migr/steps -H ~/migr
+mkdir -p ~/migr/pasos && echo 'echo hola' > ~/migr/pasos/01-saludo
+cd ~/migr                                          # la carpeta del proyecto es donde estás
+bash-resume /opt/odoo/doodba -s pasos
 ```
 
 1. La primera vez no hay estado: responde **`m`** para abrir el menú, elige una línea y pulsa **`Enter`**.
-2. Las siguientes veces basta con `bash-resume -H ~/migr`: recuerda el directorio de trabajo y los pasos,
+2. Las siguientes veces basta con `bash-resume` en esa carpeta: recuerda el directorio de trabajo y los pasos,
    muestra el punto pendiente y pregunta qué hacer.
 
 ## Uso
 
 ```bash
-bash-resume [WORKDIR] [-s|--steps DIR] [-H|--home DIR]
+bash-resume [WORKDIR] [-s|--steps DIR] [-p|--project DIR]
 ```
 
 | Argumento | Qué es | Si no se indica |
 |---|---|---|
 | `WORKDIR` | Directorio donde se ejecutan los comandos (por ejemplo, el doodba) | El guardado en el estado, o se pregunta |
-| `-s, --steps` | Carpeta con los ficheros de pasos | La guardada, `./migration-steps`, o se pregunta |
-| `-H, --home` | Carpeta del proyecto: `state.json`, `migration.log` y `onerror` | `$BASH_RESUME_HOME`, o se pregunta |
+| `-s, --steps` | Carpeta con los ficheros de pasos | La guardada en el estado, o se pregunta |
+| `-p, --project` | Carpeta del proyecto: `state.json`, `migration.log` y `onerror` | El directorio actual |
 
-Truco: `export BASH_RESUME_HOME=~/migr` y basta con `bash-resume`.
+Lo normal es una carpeta por migración: `cd` a ella y `bash-resume`. Si no hay `state.json`, avisa y crea el
+proyecto, y pregunta el directorio de trabajo y la carpeta de pasos la primera vez. Desde otro sitio: `bash-resume -p ~/migr`.
 
 ### La pregunta inicial
 
@@ -129,13 +130,13 @@ docker compose run --rm odoo --update all --stop-after-init
 | **Llega a una línea `#.`** | Se para con código 0. Al reanudar se vuelve a parar ahí: para seguir, elige la línea siguiente en el menú |
 | **Termina todos los pasos** | `Procesado todos los ficheros disponibles.` y código 0 |
 
-Ficheros del home (`-H`):
+Ficheros del proyecto (el directorio actual, o `-p`):
 - `state.json`: por dónde va. Mismo formato que pyBashResume, así que se puede editar a mano.
 - `migration.log`: todo lo que pasa, con fecha y fichero de pasos (se va acumulando).
 - `onerror` (opcional): comandos que se ejecutan si algo falla, por ejemplo `telegram-send "❌ Error"`.
   Las líneas vacías y las que empiezan por `#` se ignoran.
 
-Útil en scripts: `bash-resume -H ~/migr && telegram-send "✅ Migración terminada"`.
+Útil en scripts: `bash-resume -p ~/migr && telegram-send "✅ Migración terminada"`.
 
 ## Compilar desde el código
 
@@ -157,7 +158,7 @@ cargo build --release --locked --target x86_64-unknown-linux-musl
 
 ## Diferencias con pyBashResume
 
-- `-H/--home` (o `BASH_RESUME_HOME`): `state.json`, el log y `onerror` viven en una carpeta por proyecto, no junto al script.
+- **El directorio actual es el proyecto** (`-p/--project` para otro): `state.json`, el log y `onerror` viven en una carpeta por migración, no junto al script.
 - Argumentos más cortos: `WORKDIR`, `-s/--steps` (antes `--steps-path`).
 - Menú en una sola pantalla; elegir una línea ya confirma la ejecución.
 - Los comandos se ejecutan con `bash -euo pipefail` en vez de `sh -c` ([D10](docs/decisions.md)).
@@ -175,7 +176,7 @@ cargo clippy --all-targets -- -D warnings
 cargo fmt
 ```
 
-- `demo/` tiene pasos de ejemplo para probar: `cargo run -- . -s demo/steps -H demo`.
+- `demo/` tiene pasos de ejemplo para probar: `cargo run -- . -s demo/steps -p demo`.
 - Documentación: [comportamiento](docs/spec.md) · [decisiones](docs/decisions.md) ·
   [arquitectura](docs/architecture.md) · [tareas](docs/tasks.md) · [ideas](docs/ideas.md) · [comandos](docs/cheatsheet.md) ·
   [flujo de trabajo](docs/README.md).

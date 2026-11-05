@@ -10,9 +10,6 @@ use crate::menu::{self, Choice};
 use crate::runner::{Mode, Outcome, run_steps};
 use crate::state::State;
 
-/// Carpeta de pasos si no se indica ni hay una guardada en el estado.
-const DEFAULT_STEPS: &str = "migration-steps";
-
 /// Lo que el usuario decide hacer.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Action {
@@ -25,14 +22,18 @@ pub fn run(args: Args) -> io::Result<ExitCode> {
     let mut input = io::stdin().lock();
     let mut output = io::stdout();
 
-    let home = pick_dir(
-        &[args.home.as_deref()],
-        "Introduce el directorio home (state.json, migration.log, onerror):",
-        &mut input,
-        &mut output,
-    )?;
-    let mut log = Logger::open(&home.join("migration.log"))?;
-    let mut state = State::load(&home.join("state.json"))?;
+    let project = project_dir(args.project.as_deref())?;
+    let state_path = project.join("state.json");
+    if !state_path.exists() {
+        writeln!(
+            output,
+            "No hay state.json en {}: se crea un proyecto nuevo.",
+            project.display()
+        )?;
+    }
+    let mut log = Logger::open(&project.join("migration.log"))?;
+    let mut state = State::load(&state_path)?;
+    log.info(&format!("Proyecto: {}", project.display()));
 
     let workdir = pick_dir(
         &[args.workdir.as_deref(), state.execution_path.as_deref()],
@@ -41,11 +42,7 @@ pub fn run(args: Args) -> io::Result<ExitCode> {
         &mut output,
     )?;
     let steps = pick_dir(
-        &[
-            args.steps.as_deref(),
-            state.steps_path.as_deref(),
-            Some(Path::new(DEFAULT_STEPS)),
-        ],
+        &[args.steps.as_deref(), state.steps_path.as_deref()],
         "Introduce ruta válida para la carpeta de pasos:",
         &mut input,
         &mut output,
@@ -64,9 +61,26 @@ pub fn run(args: Args) -> io::Result<ExitCode> {
         writeln!(output, "Salida solicitada. No se ejecuta nada.")?;
         return Ok(ExitCode::SUCCESS);
     };
-    let onerror = home.join("onerror");
+    let onerror = project.join("onerror");
     let outcome = run_steps(&mut state, &steps, &workdir, &onerror, &mut log, mode)?;
     report(outcome, &state, &mut output)
+}
+
+/// Carpeta del proyecto (donde viven state.json, migration.log y onerror), como ruta absoluta.
+///
+/// Es la indicada con `-p` o, si no hay, el directorio actual.
+fn project_dir(arg: Option<&Path>) -> io::Result<PathBuf> {
+    let dir = match arg {
+        Some(dir) if dir.is_dir() => dir.to_path_buf(),
+        Some(dir) => {
+            return Err(io::Error::other(format!(
+                "el proyecto {} no es un directorio",
+                dir.display()
+            )));
+        }
+        None => std::env::current_dir()?,
+    };
+    path::absolute(dir)
 }
 
 /// Mensaje final según cómo terminó el recorrido. Solo un fallo devuelve un código de error.
@@ -325,6 +339,28 @@ mod tests {
         let shown = String::from_utf8_lossy(&output);
         assert_eq!(shown.matches("Ruta inválida").count(), 2, "{shown}");
         fs::remove_dir_all(&dir)
+    }
+
+    #[test]
+    fn project_defaults_to_current_dir() -> io::Result<()> {
+        assert_eq!(project_dir(None)?, std::env::current_dir()?);
+        Ok(())
+    }
+
+    #[test]
+    fn project_from_flag_is_made_absolute() -> io::Result<()> {
+        // `cargo test` se ejecuta en la raíz del crate, donde existe `src/`.
+        assert_eq!(
+            project_dir(Some(Path::new("src")))?,
+            std::env::current_dir()?.join("src")
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn project_flag_must_be_a_directory() {
+        let err = project_dir(Some(Path::new("/no/existe"))).unwrap_err();
+        assert!(err.to_string().contains("/no/existe"), "{err}");
     }
 
     #[test]

@@ -14,11 +14,13 @@ o desde cualquier punto elegido en un menú interactivo.
 
 | Nombre | Contenido | Cómo se resuelve |
 |---|---|---|
-| **home** | `state.json`, `migration.log`, `onerror` | `-H/--home DIR` → env `BASH_RESUME_HOME` → pregunta interactiva. No se guarda en el estado. **[cambio]** En Python era el directorio del script. |
+| **proyecto** | `state.json`, `migration.log`, `onerror` | `-p/--project DIR` → directorio actual. No se guarda en el estado. **[cambio]** En Python era el directorio del script (D11). |
 | **workdir** (`execution_path` en el estado) | Directorio donde se ejecutan los comandos | argumento posicional `WORKDIR` → `state.json` → pregunta interactiva |
-| **steps** (`steps_path` en el estado) | Carpeta con los ficheros de pasos | `-s/--steps` → `state.json` → `migration-steps` → pregunta interactiva |
+| **steps** (`steps_path` en el estado) | Carpeta con los ficheros de pasos | `-s/--steps` → `state.json` → pregunta interactiva |
 
-- **[cambio]** En Python, `--steps-path` tenía `default="migration-steps"` en argparse, así que si existía `./migration-steps`, siempre ganaba al valor de `state.json`. Ahora el valor por defecto solo se usa si no hay argumento ni estado.
+- **[cambio]** No hay estructura impuesta: en Python, `--steps-path` tenía `default="migration-steps"`; aquí la carpeta de pasos y el directorio de trabajo se indican la primera vez (argumento o pregunta) y quedan guardados.
+- Si en el proyecto no hay `state.json`, se avisa (`No hay state.json en <ruta>: se crea un proyecto nuevo.`) y se crea; si está corrupto, se avisa y se recrea. En ambos casos se preguntan las rutas que falten.
+- `-p` con una ruta que no es un directorio: `❌ Error: el proyecto <ruta> no es un directorio` y código 1. No se buscan proyectos en carpetas superiores.
 - Una ruta es válida si existe. Se guarda como ruta absoluta.
 - Una ruta inválida en la pregunta interactiva muestra un error y se vuelve a pedir.
 
@@ -74,10 +76,10 @@ o desde cualquier punto elegido en un menú interactivo.
 
 ### onerror
 
-- Es el fichero `onerror` dentro de **home**. Si no existe → WARNING en el log.
+- Es el fichero `onerror` dentro del **proyecto**. Si no existe → WARNING en el log.
 - Se ejecuta línea a línea, saltando las vacías y las que empiezan por `#`. Sus fallos se ignoran.
 
-## 6. Estado (`state.json` en home)
+## 6. Estado (`state.json` en el proyecto)
 
 El formato es **compatible con la versión Python**:
 
@@ -134,7 +136,7 @@ En Python eran dos menús curses encadenados más una pregunta de confirmación.
 - El menú usa la pantalla alternativa de la terminal: al cerrarlo, la terminal queda como estaba.
 - Necesita una terminal interactiva: si stdin o stdout no lo son (tubería, cron…), `[M]` da `❌ Error: el menú necesita una terminal interactiva` y código 1.
 
-## 8. Log (`migration.log` en home)
+## 8. Log (`migration.log` en el proyecto)
 
 - **Fichero** (en modo append), sin colores: `YYYY-mm-dd HH:MM:SS - [fichero] LEVEL   : mensaje`. El nivel se rellena hasta 8 caracteres.
 - **Consola (stderr):** el mismo formato, con colores ANSI (fecha azul; INFO verde, WARNING amarillo, ERROR rojo).
@@ -148,10 +150,11 @@ En Python eran dos menús curses encadenados más una pregunta de confirmación.
 ## 9. CLI
 
 ```
-bash-resume [WORKDIR] [-s|--steps DIR] [-H|--home DIR]
+bash-resume [WORKDIR] [-s|--steps DIR] [-p|--project DIR]
 ```
 
 - **[cambio]** Nombres más cortos que en Python (`execution_path` → `WORKDIR`, `--steps-path` → `--steps`). Las claves de `state.json` no cambian (D4).
+- Lo normal es lanzarlo **desde la carpeta del proyecto** sin argumentos (`cd proyecto && bash-resume`); `-p` sirve para lanzarlo desde otro sitio.
 - `--help`/`-h` y `--version`/`-V` los genera clap. Un argumento desconocido muestra un error con una sugerencia y sale con código 2.
 
 - Si se pulsa Ctrl+C fuera de un comando (en las preguntas), bash-resume termina sin ejecutar nada. **[cambio]** Termina por la señal (el shell muestra código 130), sin el mensaje `❌ Interrumpido por el usuario.` de Python.

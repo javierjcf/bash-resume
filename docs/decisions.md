@@ -26,10 +26,10 @@ El aislamiento del hijo se hace con `std::process::Command::process_group(0)`, s
 
 **Contexto.** Hay pocos argumentos, pero queremos `--help`, validación y buenos mensajes de error.
 **Decisión.** Usar `clap` con los features `derive` y `env`: es estable y estándar de facto. `env` resuelve
-`--home` → `BASH_RESUME_HOME` sin código propio. Nombres: `WORKDIR`, `-s/--steps` y `-H/--home` (más cortos que en Python).
+`--home` → `BASH_RESUME_HOME` sin código propio (el feature `env` se quitó en D11). Nombres: `WORKDIR`, `-s/--steps` y `-H/--home` (más cortos que en Python).
 **Alternativas.** Parsear `std::env::args` a mano, que da menos código de dependencias pero más código propio y peor UX.
 
-## D3 — Directorio home obligatorio (`--home` → `BASH_RESUME_HOME` → pregunta)
+## D3 — Directorio home obligatorio (`--home` → `BASH_RESUME_HOME` → pregunta) — *Sustituida por D11*
 
 **Contexto.** En Python, `state.json`, `migration.log` y `onerror` vivían junto al script. Un binario
 instalado (por ejemplo en `~/.cargo/bin`) no es un buen sitio para eso.
@@ -112,3 +112,16 @@ ejecuta dentro lo suyo). Pasos que usaran variables sin definir o tuberías con 
 fallan: es intencionado; se aceptan explícitamente con `${VAR:-}` o `|| true`.
 **Alternativas.** `sh` (paridad con Python); shell configurable (`--shell` o `#!` por fichero): más
 flexible, pero más complejo.
+
+## D11 — El directorio actual es el proyecto (`-p/--project`)
+
+**Contexto.** Con D3 había que indicar siempre `-H/--home` (o `BASH_RESUME_HOME`): pesado para el uso
+real, una carpeta por migración en la que se hace `cd`.
+**Decisión.** Como `git` o `cargo`, el proyecto (`state.json`, `migration.log`, `onerror`) es el **directorio
+actual**; `-p/--project DIR` apunta a otro. Sin variable de entorno y sin buscar en carpetas superiores. Si no
+hay `state.json`, se avisa y se crea, y se preguntan las rutas que falten. **No se impone ninguna estructura**:
+la carpeta de pasos y el directorio de trabajo se indican la primera vez y quedan guardados (se elimina el
+valor por defecto `migration-steps`). Se quita el feature `env` de clap.
+**Alternativas.** Buscar el proyecto hacia arriba, como git (más magia); un subcomando `init` (un paso más);
+una estructura por convención con `migration-steps/steps` (impone cómo organizar los pasos); variables de
+entorno para los pasos (sin valor claro hoy).

@@ -5,6 +5,12 @@ las versiones siguen [SemVer](https://semver.org/lang/es/).
 
 ## [Unreleased]
 
+### Cambiado
+- **El directorio actual es el proyecto**: `bash-resume` a secas usa `state.json`, `migration.log` y `onerror`
+  de la carpeta donde estás. Si no hay `state.json`, avisa y crea el proyecto.
+- `-p/--project DIR` sustituye a `-H/--home` y desaparece la variable `BASH_RESUME_HOME`.
+- Ya no hay carpeta de pasos por defecto (`migration-steps`): se indica la primera vez y queda guardada.
+
 ## [0.1.0] - 2026-11-04
 
 Primera versión: reescritura en Rust de [pyBashResume](https://github.com/Comunitea/pyBashResume), con su
