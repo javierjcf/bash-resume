@@ -5,26 +5,30 @@ las versiones siguen [SemVer](https://semver.org/lang/es/).
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-11-05
+
 ### Añadido
 
-- **Tiempos** (D16): cada comando que termina bien guarda lo que tardó en `times.json`, en el proyecto. El log
-  numera los comandos (`⏳ [13/40] …`) y dice cuánto queda según la vez anterior, en la misma
-  línea. También da el tiempo de cada fichero y, al terminar todos los pasos, un resumen por fichero con el total
-  (que incluye lo hecho antes de reanudar). La interfaz muestra lo que tardó cada línea y cada fichero, el total en
-  la cabecera y lo que queda en el popup. Editar los pasos no hace perder tiempos: se buscan por el texto del
-  comando.
+- **Tiempos** (D16). Cada comando que termina bien guarda lo que tardó en `times.json`, en el proyecto, y con eso:
+  - el log numera los comandos y dice cuánto queda según la vez anterior: `⏳ [13/40] comando (quedan ~01:20:00)`;
+  - al terminar cada fichero, su tiempo; al completar todos los pasos, un resumen por fichero con el total, que
+    incluye lo hecho antes de reanudar;
+  - la interfaz muestra lo que tardó cada fichero y cada comando, el total en la cabecera y lo que queda en el popup.
+
+  Los tiempos se buscan por el texto del comando: editar, mover o borrar líneas no hace perder los demás. Un fallo o
+  un Ctrl+C no guardan tiempo. Para empezar de cero, se borra `times.json`.
 
 ### Cambiado
 
-- **Log más claro**: cada comando ocupa dos líneas en vez de cuatro: `⏳ [13/40] comando` al empezar y
-  `✅ [13/40] 00:00:07 comando` o `❌ [13/40] 00:00:51 comando (exit 1)` (o `⛔ … (Ctrl+C)`) al terminar. Los mensajes quedan en columna
-  (`[fichero] INFO:` con relleno fijo) y los tiempos usan `HH:MM:SS`.
+- **Log más claro**: dos líneas por comando en vez de cuatro, y cada una se entiende sola (sirven para `grep`):
+  `⏳ [13/40] comando` al empezar y `✅ [13/40] 00:00:07 comando` al terminar (`❌ … (exit 1)` si falla, `⛔ … (Ctrl+C)`
+  si se interrumpe). Los mensajes quedan en columna y todos los tiempos usan `HH:MM:SS`.
 
 ### Corregido
 
-- `docker run -it` fallaba siempre (*stdin is not a terminal*) desde que los comandos recibían stdin desde
-  `/dev/null`. Ahora stdin es una terminal falsa vacía: `docker run -it` y `docker compose run` funcionan, y
-  Ctrl+C sigue deteniendo el comando sin avanzar el estado (D15).
+- `docker run -it` fallaba siempre (*stdin is not a terminal*). Ahora los comandos reciben como stdin una terminal
+  falsa vacía: `docker run -it` y `docker compose run` funcionan, y Ctrl+C sigue deteniendo el comando sin avanzar el
+  estado (D15).
 
 ## [0.1.0] - 2026-11-05
 
@@ -75,5 +79,6 @@ misma funcionalidad y un único binario sin dependencias.
 - Se mantienen a propósito dos comportamientos del original: al reanudar sobre una parada `#.` se vuelve a parar,
   y al terminar todos los pasos el estado queda en el último comando.
 
-[Unreleased]: https://github.com/javierjcf/bash-resume/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/javierjcf/bash-resume/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/javierjcf/bash-resume/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/javierjcf/bash-resume/releases/tag/v0.1.0
