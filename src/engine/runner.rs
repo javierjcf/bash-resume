@@ -3,11 +3,13 @@
 use std::fs;
 use std::io;
 use std::path::Path;
+use std::time::Instant;
 
-use super::parser::{Kind, Line, list_step_files, parse_file};
+use super::parser::{Kind, Line, StepFile, list_step_files, load_step_files, parse_file};
 use super::state::State;
-use crate::exec::execute;
-use crate::log::Logger;
+use super::timings::{Estimate, Timings, progress};
+use crate::exec::{Progress, execute};
+use crate::log::{Logger, format_duration};
 
 /// Cuánto ejecutar.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -34,6 +36,8 @@ pub enum Outcome {
 /// Ejecuta los pasos de `steps_dir` desde la posición guardada en `state`.
 ///
 /// Cada comando se lanza en `workdir`. Si uno falla, se ejecutan las líneas de `onerror`.
+/// Lo que tarda cada comando que termina bien se anota en `timings` (spec §6.1); al acabar se registra el tiempo de
+/// esta ejecución y, si se completaron todos los pasos, el resumen por fichero.
 pub fn run_steps(
     state: &mut State,
     steps_dir: &Path,
@@ -41,6 +45,30 @@ pub fn run_steps(
     onerror: &Path,
     log: &mut Logger,
     mode: Mode,
+    timings: &mut Timings,
+) -> io::Result<Outcome> {
+    let start = Instant::now();
+    let outcome = walk(state, steps_dir, workdir, onerror, log, mode, timings)?;
+    log.set_source(None);
+    if outcome == Outcome::Finished {
+        log_summary(steps_dir, timings, log);
+    }
+    log.info(&format!(
+        "⏱ Esta ejecución: {}",
+        format_duration(start.elapsed())
+    ));
+    Ok(outcome)
+}
+
+/// El recorrido de los pasos: qué se ejecuta, dónde se para y qué posición se guarda.
+fn walk(
+    state: &mut State,
+    steps_dir: &Path,
+    workdir: &Path,
+    onerror: &Path,
+    log: &mut Logger,
+    mode: Mode,
+    timings: &mut Timings,
 ) -> io::Result<Outcome> {
     let files = list_step_files(steps_dir)?;
     if files.is_empty() {
@@ -61,6 +89,9 @@ pub fn run_steps(
         let lines = parse_file(&steps_dir.join(file))?;
         let first = if fi == start_file { start_line } else { 0 };
         log.set_source(Some(file));
+        // Todos los ficheros tal y como están ahora, solo para numerar y estimar (no cambia qué se ejecuta).
+        let all = load_step_files(steps_dir).unwrap_or_default();
+        let here = all.iter().position(|f| &f.name == file);
 
         for (li, line) in lines.iter().enumerate().skip(first) {
             match line.kind {
@@ -72,10 +103,16 @@ pub fn run_steps(
                     return Ok(Outcome::Stopped);
                 }
                 Kind::Cmd => {
-                    if !execute(&line.text, workdir, log) {
+                    let progress = here.map(|i| command_progress(&all, i, li, timings));
+                    let run = execute(&line.text, workdir, log, progress.as_ref());
+                    if !run.ok {
                         state.set_position(file, &line.text, li + 1)?;
                         run_onerror(onerror, workdir, log);
                         return Ok(Outcome::Failed);
+                    }
+                    timings.record(&line.text, run.elapsed);
+                    if let Err(e) = timings.save() {
+                        log.warn(&format!("No se pudieron guardar los tiempos: {e}"));
                     }
                     // Avanzar al siguiente comando; si no hay más, quedarse en este (como en Python).
                     match next_command(steps_dir, &files, fi, &lines, li)? {
@@ -88,11 +125,64 @@ pub fn run_steps(
                 }
             }
         }
+        let total = timings.total(&lines);
+        if total.timed + total.missing > 0 {
+            log.info(&format!("⏱ Fichero {file}: {}", show_total(total)));
+        }
     }
 
     log.set_source(None);
     log.info("Procesado todos los ficheros disponibles.");
     Ok(Outcome::Finished)
+}
+
+/// Número de comando y estimación de lo que queda desde la línea `line` del fichero `file`.
+fn command_progress(files: &[StepFile], file: usize, line: usize, timings: &Timings) -> Progress {
+    let (number, total) = progress(files, file, line);
+    Progress {
+        number,
+        total,
+        remaining: timings.remaining(files, file, line).describe(),
+    }
+}
+
+/// `01:05:30`, con `(2 sin tiempo)` si falta algún comando.
+fn show_total(total: Estimate) -> String {
+    let mut text = format_duration(total.known);
+    if total.missing > 0 {
+        text.push_str(&format!(" ({} sin tiempo)", total.missing));
+    }
+    text
+}
+
+/// Tabla con el tiempo de cada fichero y el total, sumando lo guardado (incluye lo hecho antes de reanudar).
+fn log_summary(steps_dir: &Path, timings: &Timings, log: &Logger) {
+    let Ok(files) = load_step_files(steps_dir) else {
+        return;
+    };
+    let rows: Vec<(&str, Estimate)> = files
+        .iter()
+        .map(|f| (f.name.as_str(), timings.total(&f.lines)))
+        .filter(|(_, t)| t.timed + t.missing > 0)
+        .collect();
+    if rows.is_empty() {
+        return;
+    }
+    let width = rows
+        .iter()
+        .map(|(name, _)| name.chars().count())
+        .max()
+        .unwrap_or(0)
+        .max(5);
+    let mut sum = Estimate::default();
+    log.info("⏱ Resumen de tiempos:");
+    for (name, total) in &rows {
+        log.info(&format!("   {name:<width$}   {}", show_total(*total)));
+        sum.known += total.known;
+        sum.timed += total.timed;
+        sum.missing += total.missing;
+    }
+    log.info(&format!("   {:<width$}   {}", "Total", show_total(sum)));
 }
 
 /// Posición de un comando: fichero, línea (1-based) y texto.
@@ -151,6 +241,6 @@ fn run_onerror(path: &Path, workdir: &Path, log: &mut Logger) {
             continue;
         }
         log.info(&format!("Ejecutando comando onerror: {cmd}"));
-        execute(cmd, workdir, log);
+        execute(cmd, workdir, log, None);
     }
 }

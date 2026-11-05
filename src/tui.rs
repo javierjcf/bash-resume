@@ -13,18 +13,21 @@ use ratatui::DefaultTerminal;
 use ratatui::crossterm::event::{self, Event};
 
 use crate::engine::state::State;
+use crate::engine::timings::Timings;
 use menu::{Menu, Outcome};
 
 pub use menu::Choice;
 
 /// Abre el menú en la terminal y devuelve la línea elegida, o `None` si se sale sin elegir.
-pub fn choose(steps_dir: &Path, state: &State) -> io::Result<Option<Choice>> {
+///
+/// `timings` se usa para mostrar lo que tardó cada comando y las estimaciones.
+pub fn choose(steps_dir: &Path, state: &State, timings: &Timings) -> io::Result<Option<Choice>> {
     if !io::stdin().is_terminal() || !io::stdout().is_terminal() {
         return Err(io::Error::other(
             "bash-resume necesita una terminal interactiva (o usa -y/-o)",
         ));
     }
-    let mut menu = Menu::load(steps_dir, state)?;
+    let mut menu = Menu::load(steps_dir, state)?.with_timings(timings.clone());
     let mut terminal = ratatui::try_init()?;
     let result = event_loop(&mut menu, &mut terminal);
     // Se restaura la terminal pase lo que pase en el bucle (el panic lo cubre el hook de ratatui).

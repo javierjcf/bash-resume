@@ -8,6 +8,7 @@ use std::path::{Path, PathBuf};
 
 use bash_resume::engine::runner::{Mode, Outcome, run_steps};
 use bash_resume::engine::state::State;
+use bash_resume::engine::timings::Timings;
 use bash_resume::log::Logger;
 
 /// Proyecto de prueba en un directorio temporal: `steps/`, `state.json`, `migration.log` y `onerror`.
@@ -36,6 +37,7 @@ impl Project {
     fn run(&self, mode: Mode) -> io::Result<Outcome> {
         let mut state = self.state()?;
         let mut log = Logger::open(&self.dir.join("migration.log"))?;
+        let mut timings = Timings::load(&self.dir.join("times.json"));
         run_steps(
             &mut state,
             &self.dir.join("steps"),
@@ -43,7 +45,13 @@ impl Project {
             &self.dir.join("onerror"),
             &mut log,
             mode,
+            &mut timings,
         )
+    }
+
+    /// Contenido de un fichero del proyecto (vacío si no existe).
+    fn read(&self, name: &str) -> String {
+        fs::read_to_string(self.dir.join(name)).unwrap_or_default()
     }
 
     /// Líneas escritas en `out` por los comandos.
@@ -216,5 +224,119 @@ fn empty_steps_dir_finishes_without_doing_anything() -> io::Result<()> {
     let p = Project::new("empty", &[])?;
     assert_eq!(p.run(Mode::All)?, Outcome::Finished);
     assert!(!Path::new(&p.path("out")).exists());
+    Ok(())
+}
+
+// ---- Tiempos (spec §6.1) ----
+
+#[test]
+fn successful_commands_are_timed_and_summarized() -> io::Result<()> {
+    let p = Project::new(
+        "times-ok",
+        &[
+            ("01-a", "echo a >> out\n#> nota\necho b >> out\n"),
+            ("02-b", "echo c >> out\n"),
+        ],
+    )?;
+    assert_eq!(p.run(Mode::All)?, Outcome::Finished);
+
+    let times = p.read("times.json");
+    for cmd in ["echo a >> out", "echo b >> out", "echo c >> out"] {
+        assert!(times.contains(&format!("\"{cmd}\": 0")), "{times}");
+    }
+    let log = p.read("migration.log");
+    assert!(
+        log.contains("▶ [2/3] Ejecutando comando: echo b >> out"),
+        "{log}"
+    );
+    assert!(log.contains("⏱ Fichero 01-a: 00:00:00"), "{log}");
+    assert!(log.contains("⏱ Resumen de tiempos:"), "{log}");
+    assert!(log.contains("   Total   00:00:00"), "{log}");
+    assert!(log.contains("⏱ Esta ejecución: 00:00:00"), "{log}");
+    Ok(())
+}
+
+#[test]
+fn estimate_uses_saved_times_and_counts_missing_ones() -> io::Result<()> {
+    let p = Project::new(
+        "times-eta",
+        &[("01-a", "echo a >> out\necho b >> out\necho c >> out\n")],
+    )?;
+    fs::write(
+        p.path("times.json"),
+        r#"{ "echo a >> out": 120, "echo b >> out": 60 }"#,
+    )?;
+    assert_eq!(p.run(Mode::All)?, Outcome::Finished);
+
+    let log = p.read("migration.log");
+    assert!(
+        log.contains(
+            "▶ [1/3] Ejecutando comando: echo a >> out   (quedan ~00:03:00, 1 sin tiempo)"
+        ),
+        "{log}"
+    );
+    assert!(
+        log.contains("▶ [3/3] Ejecutando comando: echo c >> out\n"),
+        "sin datos, sin paréntesis:\n{log}"
+    );
+    // Solo se añade texto a las líneas que ya había: ninguna línea extra por comando.
+    let per_command = log.lines().filter(|l| l.contains("[01-a]")).count();
+    assert_eq!(
+        per_command,
+        3 * 4 + 1,
+        "Ejecutando + 2 de resultado + Tiempo por comando, y el total del fichero:\n{log}"
+    );
+    Ok(())
+}
+
+#[test]
+fn failed_command_keeps_its_previous_time() -> io::Result<()> {
+    let p = Project::new("times-fail", &[("01-a", "false\n")])?;
+    fs::write(p.path("times.json"), r#"{ "false": 99 }"#)?;
+    assert_eq!(p.run(Mode::All)?, Outcome::Failed);
+
+    assert!(p.read("times.json").contains("\"false\": 99"));
+    let log = p.read("migration.log");
+    assert!(log.contains("⏱ Esta ejecución"), "{log}");
+    assert!(
+        !log.contains("Resumen de tiempos"),
+        "solo al terminar todo:\n{log}"
+    );
+    Ok(())
+}
+
+#[test]
+fn summary_after_resume_includes_earlier_commands() -> io::Result<()> {
+    let p = Project::new(
+        "times-resume",
+        &[("01-a", "echo a >> out\ntest -f ok\necho b >> out\n")],
+    )?;
+    assert_eq!(p.run(Mode::All)?, Outcome::Failed);
+    fs::write(p.path("ok"), "")?;
+    assert_eq!(p.run(Mode::All)?, Outcome::Finished);
+
+    assert_eq!(p.out(), ["a", "b"], "`a` no se repite");
+    assert!(
+        p.read("times.json").contains("\"echo a >> out\""),
+        "el tiempo de `a` se guardó antes del fallo"
+    );
+    let log = p.read("migration.log");
+    assert!(
+        !log.contains("sin tiempo"),
+        "el resumen cuenta `a` aunque no se repitió:\n{log}"
+    );
+    Ok(())
+}
+
+#[test]
+fn command_output_never_goes_to_the_log() -> io::Result<()> {
+    let p = Project::new("times-output", &[("01-a", "echo SAL\"\"IDA\n")])?;
+    assert_eq!(p.run(Mode::All)?, Outcome::Finished);
+    let log = p.read("migration.log");
+    assert!(log.contains("Ejecutando comando: echo SAL\"\"IDA"), "{log}");
+    assert!(
+        !log.contains("SALIDA"),
+        "la salida del comando va solo a la pantalla:\n{log}"
+    );
     Ok(())
 }

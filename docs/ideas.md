@@ -14,11 +14,11 @@ Nada de esto está decidido: si se hace una, pasa a [tasks.md](tasks.md), con su
   texto de la línea y el menú permite saltar a cualquier punto.
 - Un único binario estático (con musl), sin Python ni dependencias en el servidor.
 - Los comandos escriben directamente en la terminal (colores y barras de progreso), y Ctrl+C siempre los detiene.
+- Se ve el progreso (`[13/40]`), cuánto queda según la ejecución anterior y lo que tarda cada fichero y el total.
 
 **Dónde se queda corto para el objetivo**
 - Que un fallo saque del programa es **intencionado**: imita a un script de bash y obliga a intervenir a mano.
   Para relanzar sin pasar por la interfaz ya existen `-y`/`-o`.
-- **Se sabe poco del progreso:** ni cuántos pasos quedan ni cuánto tarda cada fichero o la migración entera.
 - **Dos rarezas heredadas de Python** (mantenidas a propósito): al reanudar en un `#.` se vuelve a parar,
   y al terminar todo, "Continuar" repite el último comando.
 
@@ -26,10 +26,8 @@ Nada de esto está decidido: si se hace una, pasa a [tasks.md](tasks.md), con su
 
 | Idea | Qué resuelve | Esfuerzo |
 |---|---|---|
-| **Tiempos por comando, por fichero y total** | Ya se registra `Tiempo de ejecución` de cada comando (`exec.rs`). Faltaría el tiempo de cada fichero al salir de él y el total de la ejecución al terminar, por el logger (pantalla y `migration.log`). Si termina con éxito el último fichero, un resumen con la tabla por fichero y el total. Encaje: `Instant` en `runner.rs` alrededor de cada fichero y de `run_steps`, reutilizando `format_duration`. **Limitación:** son tiempos de *esta* ejecución. Si hubo un fallo y se reanudó, el resumen no cubre lo anterior y no es representativo; es útil sobre todo con una migración ya ensayada que va de principio a fin. **Pendiente de decidir:** acumularlos entre reanudaciones (¿en `state.json`, o en un fichero aparte del proyecto?), poniéndolos a cero al empezar desde el principio. Relacionada con *Historial de ejecución* y *Progreso* | Bajo (sin acumular) / Medio (acumulando) |
 | **`[c] Continuar tras la parada`** en el popup cuando el estado está en una línea `#.` | Quita la rareza de la parada sin cambiar el comportamiento por defecto (no hace falta bajar a la línea siguiente) | Muy bajo |
 | **Expandir `~`** en las rutas que se escriben en las preguntas | Hoy `~/migr` da "Ruta inválida" (el shell solo expande `~` en los argumentos, no en lo que se teclea) | Muy bajo |
-| **Progreso**: `[12/40]` en el log y en el resumen | Saber cuánto queda en una migración larga | Bajo |
 | **Guardar una copia del estado corrupto** (`state.json.corrupto`) antes de recrearlo | Hoy se pierde la posición sin rastro; con la copia se puede recuperar a mano | Muy bajo |
 
 ## Útiles
@@ -41,7 +39,8 @@ Nada de esto está decidido: si se hace una, pasa a [tasks.md](tasks.md), con su
 | **`--list` / `--dry-run`**: mostrar qué se ejecutaría desde la posición actual, sin ejecutar | Revisar el plan antes de una migración real | Bajo |
 | **`cd` persistente** con una marca `#cd dir` (cambia el directorio de las líneas siguientes) | Evitar repetir `cd odoo/custom && …` en muchas líneas | Bajo (solo el runner) |
 | **Variables por proyecto**: un fichero `env` en el proyecto que se carga en cada comando | Nombres de BBDD, versiones… sin repetirlos; encaja bien con `-u` de bash | Bajo |
-| **Historial de ejecución** en `state.json` (comando, fecha, duración, resultado) | "¿Dónde falló la última vez?" y estimar cuánto tarda cada paso. Python ignora las claves extra, así que sigue siendo compatible | Medio |
+| **Historial de ejecución** (comando, fecha, duración, resultado de cada ejecución, no solo la última buena de `times.json`) | "¿Dónde falló la última vez?" y comparar ejecuciones | Medio |
+| **Aviso de comando lento** en el resumen final: los que tardaron bastante más que la vez anterior | Detectar a tiempo que algo va peor que en el ensayo. Necesita guardar el tiempo anterior antes de sustituirlo en `times.json` | Bajo |
 | **Menú: marcas de hecho/pendiente, búsqueda con `/`, `Inicio`/`Fin`/`RePág`** | Moverse rápido por ficheros largos y ver por dónde va la ejecución | Medio |
 | **Separador de ejecución en el log** (`===== inicio: fecha, desde 02-migrar:3 =====`) | El log acumulado se lee mejor cuando hay muchas ejecuciones | Muy bajo |
 | **Avanzar el estado aunque falle leer el fichero siguiente** | Hoy, si un comando va bien pero el fichero siguiente no se puede leer (no UTF-8, permisos), el estado no avanza y al reanudar se repite el comando | Bajo |

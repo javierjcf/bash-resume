@@ -176,3 +176,23 @@ en la misma versión. Con `-it`, la TTY del contenedor hace eco del `^D`: aparec
 comandos que preguntan por stdin siguen recibiendo fin de entrada (`apt -y`, `--yes`); `sudo` lee de `/dev/tty`.
 **Alternativas.** `/dev/null` (D14, rompe `docker run -it`); no escribir el `^D` (un `cat` o un `read` se quedarían
 esperando para siempre); cerrar el maestro (da EOF, pero la PTY deja de ser una terminal y `-it` vuelve a fallar).
+
+## D16 — Tiempos en `times.json`, por texto del comando
+
+**Contexto.** Interesa saber cuánto tarda cada comando, cada fichero y la migración entera, y cuánto queda; sobre
+todo en producción tras un ensayo. Contar solo "esta ejecución" no sirve tras un fallo y una reanudación, y los
+ficheros de pasos se editan a menudo durante el desarrollo de una migración.
+**Decisión.** Fichero aparte `times.json` en el proyecto (`state.json` no cambia y sigue compatible con Python), con
+`texto del comando → segundos` de la **última vez que terminó bien**. Sin fichero ni número de línea: añadir, mover,
+borrar o renombrar no hace perder nada; una línea cambiada es un comando nuevo. Los totales se calculan recorriendo
+los ficheros actuales y buscando cada comando, sin comparar diferencias ni limpiar entradas viejas. Nunca se vacía:
+se sobrescribe comando a comando, y para empezar de cero se borra el fichero. Un fallo al leerlo o guardarlo solo
+avisa: los tiempos nunca detienen la ejecución. En el log no se añade ninguna línea por comando (`[n/N]` y "quedan"
+van en `Ejecutando comando`), solo el total de cada fichero y el resumen final; la salida de los comandos sigue sin
+entrar en `migration.log`. Formato `HH:MM:SS` en todo (comandos, ficheros, totales y estimaciones): exacto y sin redondeos.
+**Coste.** Un mismo comando en dos sitios comparte el tiempo (para estimar basta). El tiempo de esta ejecución y el
+del resumen pueden diferir (el resumen suma la última vez buena de cada comando, aunque fuera en otra ejecución).
+**Alternativas.** Solo los tiempos de esta ejecución (no cubre reanudaciones ni permite estimar); guardarlos en
+`state.json` (lo haría crecer y la versión Python podría perderlos); clave por fichero y línea (añadir una línea
+haría perder los tiempos de las siguientes); vaciar al empezar desde el principio (sin estimación justo cuando más
+sirve).

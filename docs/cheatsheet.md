@@ -67,7 +67,7 @@ Para jugar y aprender. Todos se lanzan desde la raíz del proyecto.
 
 ## Probar a mano
 
-Todo usa `demo/`: pasos de ejemplo en `demo/steps/` y `demo/onerror`. `state.json` y `migration.log`
+Todo usa `demo/`: pasos de ejemplo en `demo/steps/` y `demo/onerror`. `state.json`, `times.json` y `migration.log`
 se crean ahí y git los ignora. `demo/` es la carpeta del proyecto: se usa con `-p demo` (o `cd demo`).
 
 **Primera vez y reanudar**
@@ -77,6 +77,8 @@ cargo run -- . -s demo/steps -p demo   # sin estado → interfaz: Enter, Enter, 
 echo $?                                # 1: falló un comando (0 si terminó, se paró en `#.` o salió)
 cargo run -- -p demo                   # recuerda workdir y pasos; cursor sobre el `false`, Enter → popup
 cat demo/state.json                    # por dónde va
+cat demo/times.json                    # lo que tardó cada comando
+rm -f demo/times.json                  # olvidar los tiempos
 tail -f demo/migration.log             # en otra terminal: el log en vivo
 ```
 Para "arreglar" el fallo, cambia `false` por `true` en `demo/steps/02-fallar` y pulsa `Enter` en el popup: seguirá
@@ -96,6 +98,9 @@ cargo run -- -p demo                   # Esc → baja a 03-esperar → Enter →
 Pulsa **Ctrl+C** durante el `sleep 30`: el log muestra `⛔ Ctrl+C detectado`, se ejecuta `onerror`, el
 estado queda en el `sleep` y `echo $?` da 1. En la interfaz, Ctrl+C sale sin hacer nada.
 Al terminar: `rm demo/steps/03-esperar`.
+
+**Tiempos**: lanza dos veces el paso largo. La segunda, la línea `▶ [n/N] Ejecutando comando` dice cuánto queda, y
+en la interfaz el `sleep` muestra `00:00:30` y el fichero su total. Un Ctrl+C no cambia `demo/times.json`.
 
 **Casos raros**
 ```bash

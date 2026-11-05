@@ -39,6 +39,13 @@ impl Line {
     }
 }
 
+/// Un fichero de pasos con sus líneas.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct StepFile {
+    pub name: String,
+    pub lines: Vec<Line>,
+}
+
 /// Clasifica una línea por su prefijo, ignorando los espacios al inicio y al final.
 ///
 /// El orden importa: `#>` y `#.` deben comprobarse antes que `#`.
@@ -77,6 +84,17 @@ pub fn list_step_files(dir: &Path) -> io::Result<Vec<String>> {
 pub fn parse_file(path: &Path) -> io::Result<Vec<Line>> {
     let content = fs::read_to_string(path).map_err(with_path(path))?;
     Ok(content.lines().map(Line::new).collect())
+}
+
+/// Lee todos los ficheros de pasos de `dir`, en orden alfabético.
+pub fn load_step_files(dir: &Path) -> io::Result<Vec<StepFile>> {
+    list_step_files(dir)?
+        .into_iter()
+        .map(|name| {
+            let lines = parse_file(&dir.join(&name))?;
+            Ok(StepFile { name, lines })
+        })
+        .collect()
 }
 
 #[cfg(test)]

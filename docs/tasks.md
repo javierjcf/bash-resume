@@ -21,6 +21,7 @@ Cada tarea deja el proyecto **compilando y con los tests en verde**. Las referen
 | T13 | [x] | README y cierre de la documentación |
 | T14 | [x] | El directorio actual es el proyecto (`-p/--project`) |
 | T15 | [x] | Todo en la TUI, con confirmación en popup, y flags `-y`/`-o` |
+| T16 | [x] | Tiempos por comando, fichero y total, con estimación |
 
 ---
 
@@ -102,3 +103,9 @@ Cada tarea deja el proyecto **compilando y con los tests en verde**. Las referen
 - **Hace:** desaparece la pregunta de texto `Y/M/O/N`. La TUI se abre siempre, con el cursor sobre la línea guardada si la hay. Elegir una línea abre el popup y solo desde él se ejecuta. Cabecera con workdir, pasos y estado. `-y/--yes` y `-o/--once` continúan o ejecutan un comando sin abrir la TUI.
 - **Aceptación:** nunca se ejecuta sin pasar por el popup; `Esc` en el popup vuelve a navegar; `-y`/`-o` funcionan sin terminal y dan error con estado inválido; sin terminal y sin flags, error claro.
 - **Rust:** estado modal comprobado antes del `match`, `FnOnce` frente a `FnMut`, `Clear`, `Flex::Center`, `Paragraph` + `Wrap`, `Span`/`Line` de ratatui, `conflicts_with` de clap.
+
+### T16 — Tiempos por comando, fichero y total, con estimación (D16)
+- **Hace:** `times.json` guarda lo que tardó cada comando la última vez que fue bien. El log numera los comandos (`▶ [13/40]`) y dice cuánto queda en la misma línea, da el tiempo de cada fichero y, al terminar todo, un resumen; siempre, el tiempo de esta ejecución. La TUI muestra el tiempo de cada línea y fichero, el total en la cabecera y lo que queda en el popup.
+- **Aceptación:** editar los pasos no da errores ni pierde tiempos de otras líneas; un fallo o un Ctrl+C no guardan tiempo; los totales incluyen lo hecho antes de reanudar; ninguna línea de log extra por comando; la salida de los comandos sigue sin entrar en `migration.log`; el recorrido no cambia.
+- **Rust:** `BTreeMap` con serde, `Duration` e `Instant`, `Option::then`, `slice::get(a..)`, `ListItem` con varios `Span`, patrón builder (`with_timings`).
+

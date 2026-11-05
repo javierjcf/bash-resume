@@ -7,6 +7,7 @@ use std::process::ExitCode;
 use crate::cli::Args;
 use crate::engine::runner::{Mode, Outcome, run_steps};
 use crate::engine::state::State;
+use crate::engine::timings::Timings;
 use crate::log::Logger;
 use crate::tui::{self, Choice};
 
@@ -58,7 +59,10 @@ pub fn run(args: Args) -> io::Result<ExitCode> {
         (_, true) => Some(Mode::Once),
         _ => None,
     };
-    let action = choose_action(&mut state, &steps, flag, tui::choose)?;
+    let mut timings = Timings::load(&project.join("times.json"));
+    let action = choose_action(&mut state, &steps, flag, |steps, state| {
+        tui::choose(steps, state, &timings)
+    })?;
     // Se suelta stdin antes de ejecutar: a partir de aquí el teclado es para los comandos.
     drop(input);
 
@@ -67,11 +71,19 @@ pub fn run(args: Args) -> io::Result<ExitCode> {
         return Ok(ExitCode::SUCCESS);
     };
     let onerror = project.join("onerror");
-    let outcome = run_steps(&mut state, &steps, &workdir, &onerror, &mut log, mode)?;
+    let outcome = run_steps(
+        &mut state,
+        &steps,
+        &workdir,
+        &onerror,
+        &mut log,
+        mode,
+        &mut timings,
+    )?;
     report(outcome, &state, &mut output)
 }
 
-/// Carpeta del proyecto (donde viven state.json, migration.log y onerror), como ruta absoluta.
+/// Carpeta del proyecto (donde viven state.json, times.json, migration.log y onerror), como ruta absoluta.
 ///
 /// Es la indicada con `-p` o, si no hay, el directorio actual.
 fn project_dir(arg: Option<&Path>) -> io::Result<PathBuf> {

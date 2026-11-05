@@ -3,11 +3,23 @@
 use std::fs::{File, OpenOptions};
 use std::io::{self, IsTerminal, Write};
 use std::path::Path;
+use std::time::Duration;
 
 use crate::with_path;
 
 const RESET: &str = "\x1b[0m";
 const BLUE: &str = "\x1b[34m";
+
+/// Duración como `HH:MM:SS` (`00:05:02`, `27:00:00`): la de comandos, ficheros, totales y estimaciones.
+pub fn format_duration(elapsed: Duration) -> String {
+    let secs = elapsed.as_secs();
+    format!(
+        "{:02}:{:02}:{:02}",
+        secs / 3600,
+        secs % 3600 / 60,
+        secs % 60
+    )
+}
 
 /// Nivel de un mensaje de log.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -118,6 +130,15 @@ mod tests {
     use std::fs;
 
     const TS: &str = "2026-11-04 10:00:00";
+
+    #[test]
+    fn formats_durations() {
+        let secs = Duration::from_secs;
+        assert_eq!(format_duration(secs(0)), "00:00:00");
+        assert_eq!(format_duration(secs(302)), "00:05:02");
+        assert_eq!(format_duration(secs(27 * 3600)), "27:00:00");
+        assert_eq!(format_duration(Duration::from_millis(59_999)), "00:00:59");
+    }
 
     #[test]
     fn formats_plain_line_like_python() {

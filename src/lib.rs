@@ -12,6 +12,7 @@ pub mod tui;
 #[cfg(test)]
 mod testutil;
 
+use std::fs;
 use std::io;
 use std::path::Path;
 
@@ -20,4 +21,15 @@ use std::path::Path;
 /// Uso: `fs::read_to_string(path).map_err(with_path(path))?`.
 pub(crate) fn with_path(path: &Path) -> impl FnOnce(io::Error) -> io::Error + '_ {
     move |e| io::Error::new(e.kind(), format!("{}: {e}", path.display()))
+}
+
+/// Escribe `text` en `path` de forma atómica: primero en `path.tmp` y después se renombra.
+///
+/// Renombrar es atómico, así que si el proceso muere a mitad, `path` sigue siendo el anterior (nunca queda a medias).
+pub(crate) fn write_atomic(path: &Path, text: &str) -> io::Result<()> {
+    let mut tmp = path.as_os_str().to_owned();
+    tmp.push(".tmp");
+    let tmp = Path::new(&tmp);
+    fs::write(tmp, text).map_err(with_path(tmp))?;
+    fs::rename(tmp, path).map_err(with_path(path))
 }

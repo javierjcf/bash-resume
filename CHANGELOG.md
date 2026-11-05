@@ -5,6 +5,19 @@ las versiones siguen [SemVer](https://semver.org/lang/es/).
 
 ## [Unreleased]
 
+### Añadido
+
+- **Tiempos** (D16): cada comando que termina bien guarda lo que tardó en `times.json`, en el proyecto. El log
+  numera los comandos (`▶ [13/40] Ejecutando comando: …`) y dice cuánto queda según la vez anterior, en la misma
+  línea. También da el tiempo de cada fichero y, al terminar todos los pasos, un resumen por fichero con el total
+  (que incluye lo hecho antes de reanudar). La interfaz muestra lo que tardó cada línea y cada fichero, el total en
+  la cabecera y lo que queda en el popup. Editar los pasos no hace perder tiempos: se buscan por el texto del
+  comando.
+
+### Cambiado
+
+- Los tiempos usan `HH:MM:SS` (`Tiempo de ejecución: 00:05:02` en vez de `0:5:2`).
+
 ### Corregido
 
 - `docker run -it` fallaba siempre (*stdin is not a terminal*) desde que los comandos recibían stdin desde

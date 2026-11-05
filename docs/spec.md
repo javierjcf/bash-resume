@@ -59,7 +59,8 @@ o desde cualquier punto elegido en un menú interactivo.
 - **¿Es un error?** `exit 0` → éxito; cualquier otro código (o morir por una señal) → fallo.
   **[cambio]** Se elimina la heurística de Python para `exit 255` + `--stop-after-init`: en Odoo un 255 es siempre un error real (D9). Para aceptar un código en un paso concreto: `cmd || true`.
 - **Ctrl+C** durante un comando: la terminal se lo envía al comando, que se detiene; bash-resume **no** se detiene, registra `⛔ Ctrl+C detectado…` y lo trata como un fallo (estado en esa línea + `onerror`, código 1), igual que Python. Cuenta como fallo aunque el comando termine con 0 al recibirlo (Odoo hace `os._exit(0)` al segundo Ctrl+C).
-- Al terminar se registra en el log `Tiempo de ejecución: h:m:s` (sin ceros a la izquierda).
+- La línea del log que anuncia el comando lleva su número entre todos los de los ficheros de pasos (contando desde el principio, no desde donde se reanuda) y, si hay tiempos guardados, lo que queda: `▶ [13/40] Ejecutando comando: …   (quedan ~01:20:00)` (§6.1). No se añade ninguna línea por comando.
+- Al terminar se registra en el log `Tiempo de ejecución: HH:MM:SS` (`00:05:02`). **[cambio]** En Python, sin ceros a la izquierda (`0:5:2`).
 
 ## 5. Recorrido de los pasos (`run_steps`)
 
@@ -74,6 +75,7 @@ o desde cualquier punto elegido en un menú interactivo.
 3. Cuando se terminan los ficheros: `Procesado todos los ficheros disponibles.`
 4. El recorrido devuelve cómo terminó (terminado, parada, fallo o una vez) para que el flujo principal decida qué mostrar.
 5. Cada fichero se lee al llegar a él, así que se pueden editar los pasos siguientes mientras se ejecutan los anteriores.
+6. Tiempos (§6.1), sin cambiar nada de lo anterior: cada `cmd` que termina bien guarda lo que tardó; al acabar cada fichero se registra `⏱ Fichero 02-migrar: 01:05:30`; al final, `⏱ Esta ejecución: …` y, solo si se procesaron todos los ficheros, `⏱ Resumen de tiempos:` con una fila por fichero y el total.
 
 ### onerror
 
@@ -100,6 +102,25 @@ El formato es **compatible con la versión Python**:
 - **[cambio]** `last_line_index = 0` no es válido (en Python, `lines[0 - 1]` apuntaba a la última línea).
 - Rust escribe el JSON con 2 espacios de sangría y Python con 4; los dos leen cualquiera.
 
+### 6.1 Tiempos (`times.json` en el proyecto) **[nuevo]**
+
+```json
+{
+  "docker compose -f devel.yaml build --pull": 312,
+  "docker compose -f devel.yaml run --rm odoo --update all --stop-after-init": 2710
+}
+```
+
+- Guarda lo que tardó (en segundos) **la última vez que terminó bien** cada comando. La clave es el texto del comando, sin espacios al inicio ni al final: sin fichero ni número de línea (D16).
+- Solo se escribe cuando un comando termina bien. Un fallo o un Ctrl+C no guardan nada ni borran el tiempo anterior.
+- Nunca se vacía: cada comando sustituye su tiempo. Tras una ejecución completa, todos los comandos actuales tienen el de esa ejecución. Para empezar de cero, se borra `times.json`.
+- Los totales se calculan recorriendo los ficheros de pasos actuales y buscando cada comando: uno nuevo o cambiado cuenta como "sin tiempo", y el tiempo de uno borrado se queda en el fichero sin sumarse. Editar, mover o renombrar no requiere nada más.
+- **Lo que queda** desde un comando: la suma de los tiempos de ese comando y de todos los siguientes, con `, N sin tiempo` si falta alguno. Si no se conoce ninguno, no se muestra.
+- **Tiempo de un fichero** y **total**: la suma de sus comandos en `times.json`, así que incluyen lo hecho antes de una reanudación.
+- **Formato:** `HH:MM:SS` en todo (`00:45:10`, `01:05:30`); lo estimado lleva `~`.
+- Si `times.json` falta, empieza vacío; si está corrupto o no se puede leer, se avisa y empieza vacío. Si no se puede guardar, se avisa y se sigue: los tiempos nunca detienen la ejecución.
+- Se guarda de forma atómica, como `state.json`.
+
 ## 7. Flujo interactivo
 
 ### 7.1 Inicio **[cambio]**
@@ -123,7 +144,7 @@ Tras resolver las rutas (§2), todo pasa en la TUI (D12). En Python era una preg
 ### 7.2 Menú y confirmación (TUI) **[cambio]**
 
 ```
- Workdir: /opt/odoo/doodba-20  ·  Pasos: ~/migr/steps  ·  ● estado válido
+ Workdir: /opt/odoo/doodba-20  ·  Pasos: ~/migr/steps  ·  ● estado válido  ·  Total ~02:10:00
 ┌ Ficheros ─────┬ 02-migrar ──────────────────────────────────────────┐
 │   01-prep     │  [001] #> MIGRANDO                                  │
 │ > ● 02-migr ┌─ ¿Ejecutar? ────────────────────────────────────────┐ │
@@ -131,17 +152,18 @@ Tras resolver las rutas (§2), todo pasa en la TUI (D12). En Python era una preg
 │             │ ▶ docker compose run --rm odoo --update all …       │ │
 │             │ Workdir  /opt/odoo/doodba-20                        │ │
 │             │ Pasos    ~/migr/steps                               │ │
+│             │ Tiempo   00:45:10 la última vez · quedan ~01:05:00  │ │
 │             │                                                     │ │
 │             │ [Enter] continuar  [o] una vez  [Esc] elegir otra línea  [q] salir │
 └─────────────└─────────────────────────────────────────────────────┘─┘
  02-migrar:3 → docker compose run … │ ↑↓/jk mover · Tab panel · Enter elegir · q salir
 ```
 
-- **Cabecera:** directorio de trabajo, carpeta de pasos y `● estado válido` (verde) o `⚠ estado no válido: elige una línea` (amarillo).
-- **Panel izquierdo:** ficheros. El del estado guardado va marcado con `●`.
-- **Panel derecho:** líneas del fichero seleccionado, con preview en vivo, número `[001]` y color por tipo (`log` verde, `stop` rojo, `comment` gris). La línea del estado guardado sale en amarillo.
+- **Cabecera:** directorio de trabajo, carpeta de pasos y `● estado válido` (verde) o `⚠ estado no válido: elige una línea` (amarillo). Con tiempos guardados, `Total ~02:10:00` en azul claro (§6.1).
+- **Panel izquierdo:** ficheros. El del estado guardado va marcado con `●`. Si algún fichero tiene tiempos, una columna en azul claro con el de cada uno, antes del nombre: `● 01:05:30 02-migrar`.
+- **Panel derecho:** líneas del fichero seleccionado, con preview en vivo, número `[001]` y color por tipo (`log` verde, `stop` rojo, `comment` gris). La línea del estado guardado sale en amarillo. Si algún comando del fichero tiene tiempo, va junto al número, en azul claro (`[005 00:45:10] docker …`); las líneas sin tiempo dejan el hueco, para que el texto quede en columna.
 - **Barra inferior:** `fichero:línea → comando` y la ayuda de teclas.
-- **Popup de confirmación** (modal, centrado): fichero y línea, comando destacado, directorio de trabajo, carpeta de pasos y teclas. Mientras está abierto, solo responde a sus teclas.
+- **Popup de confirmación** (modal, centrado): fichero y línea, comando destacado, directorio de trabajo, carpeta de pasos, tiempos (lo que tardó ese comando la última vez y lo que queda desde él, si se sabe algo) y teclas. Mientras está abierto, solo responde a sus teclas.
 - Al abrirse, con estado válido: sin popup, foco en el panel de líneas y cursor en la línea guardada. Sin estado válido: foco en ficheros, con el del estado seleccionado si existe (como en Python).
 - Los ficheros se cargan todos al abrir el menú.
 
@@ -175,9 +197,11 @@ Tras resolver las rutas (§2), todo pasa en la TUI (D12). En Python era una preg
   **[cambio]** Solo hay colores si stderr es una terminal; redirigido a un fichero o una tubería, sale texto limpio.
 - Un error al escribir el log se ignora: el log nunca detiene la ejecución.
 - `[fichero]` es el fichero de pasos que se está procesando (u `onerror`). Si no hay ninguno, no se escribe.
-- Mensajes principales: `Ejecutando comando: …`, `🔚 Proceso finalizado correctamente (exit code: 0)`,
+- La salida de los comandos **no** se escribe en el log: va solo a la terminal (§4). El log solo tiene los mensajes de bash-resume.
+- Mensajes principales: `▶ [n/N] Ejecutando comando: …   (quedan ~…)`, `🔚 Proceso finalizado correctamente (exit code: 0)`,
   `⚠️ Proceso finalizado con código de salida no cero: N`, `Comando fallido (exit code N): …`,
-  `✅ Comando completado correctamente (exit code N): …`.
+  `✅ Comando completado correctamente (exit code N): …`, `Tiempo de ejecución: HH:MM:SS`, `⏱ Fichero …`,
+  `⏱ Resumen de tiempos:` (con una fila por fichero y `Total`) y `⏱ Esta ejecución: …` (§6.1).
 
 ## 9. CLI
 
@@ -193,5 +217,5 @@ bash-resume [WORKDIR] [-s|--steps DIR] [-p|--project DIR] [-y|--yes | -o|--once]
 
 ## Fuera de alcance y mejoras posibles
 
-Las ideas para el futuro (relanzar sin preguntar con `-y`/`-o`, tiempos por fichero y total, `cd` persistente…)
+Las ideas para el futuro (`cd` persistente, más hooks, historial de ejecución…)
 están en [ideas.md](ideas.md).

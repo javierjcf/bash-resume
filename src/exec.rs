@@ -4,4 +4,4 @@ mod command;
 mod pty;
 mod signals;
 
-pub use command::execute;
+pub use command::{Execution, Progress, execute};

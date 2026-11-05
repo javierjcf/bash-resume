@@ -3,9 +3,12 @@
 use std::io;
 use std::path::{Path, PathBuf};
 
-use crate::engine::parser::{Line, list_step_files, parse_file};
+use crate::engine::parser::{Line, load_step_files};
 use crate::engine::runner::Mode;
 use crate::engine::state::State;
+use crate::engine::timings::Timings;
+
+pub use crate::engine::parser::StepFile;
 
 /// Panel con el foco.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -48,13 +51,6 @@ pub enum Outcome {
     Quit,
 }
 
-/// Un fichero de pasos con sus líneas, cargado al abrir el menú.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct StepFile {
-    pub name: String,
-    pub lines: Vec<Line>,
-}
-
 /// Estado del menú: qué ficheros hay, qué está seleccionado y qué panel tiene el foco.
 #[derive(Debug)]
 pub struct Menu {
@@ -71,17 +67,14 @@ pub struct Menu {
     /// Directorio de trabajo y carpeta de pasos, para mostrarlos en la cabecera y el popup.
     pub(super) workdir: Option<PathBuf>,
     pub(super) steps_dir: Option<PathBuf>,
+    /// Lo que tardó cada comando la última vez (vacío si no hay `times.json`).
+    pub(super) timings: Timings,
 }
 
 impl Menu {
     /// Carga todos los ficheros de `steps_dir` y abre el menú en la posición del estado.
     pub fn load(steps_dir: &Path, state: &State) -> io::Result<Self> {
-        let mut files = Vec::new();
-        for name in list_step_files(steps_dir)? {
-            let lines = parse_file(&steps_dir.join(&name))?;
-            files.push(StepFile { name, lines });
-        }
-        Ok(Self::new(files, state))
+        Ok(Self::new(load_step_files(steps_dir)?, state))
     }
 
     /// Abre el menú sobre `files`, con el fichero del estado seleccionado y,
@@ -109,9 +102,16 @@ impl Menu {
             confirm: false,
             workdir: state.execution_path.clone(),
             steps_dir: state.steps_path.clone(),
+            timings: Timings::default(),
         };
         menu.select_file(file);
         menu
+    }
+
+    /// Añade los tiempos guardados, para mostrarlos junto a las líneas, los ficheros y en el popup.
+    pub fn with_timings(mut self, timings: Timings) -> Self {
+        self.timings = timings;
+        self
     }
 
     /// Aplica una tecla y dice si hay que seguir, ejecutar o salir.

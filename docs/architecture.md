@@ -22,14 +22,15 @@ en su carpeta; lo que une todo (`app`, `cli`) y lo transversal (`log`) quedan en
 ```
 src/
 ├── main.rs          binario: parsea los args con clap, llama a app::run y devuelve el código de salida
-├── lib.rs           declara los módulos (pub mod …) y el helper with_path para los errores
+├── lib.rs           declara los módulos (pub mod …) y los helpers with_path (errores) y write_atomic
 ├── cli.rs           struct Args (clap)
 ├── app.rs           flujo principal: resolver rutas, abrir la TUI (o -y/-o) y lanzar el recorrido
-├── log.rs           logger a fichero y consola
+├── log.rs           logger a fichero y consola; format_duration (H:MM:SS)
 ├── engine.rs        ── lógica, sin terminal ni interfaz
 ├── engine/
-│   ├── parser.rs    tipos de línea, clasificar y leer ficheros de pasos
+│   ├── parser.rs    tipos de línea, clasificar y leer ficheros de pasos (StepFile, load_step_files)
 │   ├── state.rs     state.json
+│   ├── timings.rs   times.json: tiempo de cada comando, totales, lo que queda y [n/N]
 │   └── runner.rs    recorrido de los pasos, stop, once y onerror
 ├── exec.rs          ── ejecutar comandos (expone `execute`)
 ├── exec/

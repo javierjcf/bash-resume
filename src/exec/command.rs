@@ -5,19 +5,53 @@ use std::process::{Command, Stdio};
 use std::time::{Duration, Instant};
 
 use super::{pty, signals};
-use crate::log::Logger;
+use crate::log::{Logger, format_duration};
 
 /// Opciones estrictas de bash (D10): `-e` para al primer fallo dentro de la línea, `-u` da error si
 /// se usa una variable sin definir y `-o pipefail` hace fallar una tubería si falla cualquiera de sus partes.
 const BASH_OPTIONS: [&str; 4] = ["-e", "-u", "-o", "pipefail"];
 
-/// Ejecuta `cmd` con `bash -euo pipefail -c` dentro de `workdir` y devuelve si terminó bien.
+/// Resultado de ejecutar un comando.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Execution {
+    /// Terminó con 0 y sin Ctrl+C.
+    pub ok: bool,
+    /// Lo que tardó.
+    pub elapsed: Duration,
+}
+
+/// Por dónde va la ejecución, para la línea `Ejecutando comando` (spec §4).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Progress {
+    /// Número del comando (1-based) entre todos los de los ficheros de pasos.
+    pub number: usize,
+    pub total: usize,
+    /// Estimación de lo que queda (`~01:20:00`), si se conoce algo.
+    pub remaining: Option<String>,
+}
+
+/// Ejecuta `cmd` con `bash -euo pipefail -c` dentro de `workdir` y devuelve si terminó bien y lo que tardó.
 ///
 /// La salida del comando va directamente a la terminal (stdout y stderr heredados), pero **no** el teclado: stdin
 /// es una terminal falsa vacía (D15), así que `docker run -it` funciona, nadie puede poner la terminal real en modo
 /// raw y Ctrl+C siempre llega como señal a bash-resume, que lo trata como fallo aunque el comando salga con 0.
-pub fn execute(cmd: &str, workdir: &Path, log: &Logger) -> bool {
-    log.info(&format!("Ejecutando comando: {cmd}"));
+///
+/// Con `progress`, la línea del log es `▶ [13/40] Ejecutando comando: … (quedan ~01:20:00)`; sin él (por ejemplo, en
+/// `onerror`), `Ejecutando comando: …`.
+pub fn execute(cmd: &str, workdir: &Path, log: &Logger, progress: Option<&Progress>) -> Execution {
+    log.info(&match progress {
+        Some(p) => {
+            let remaining = p
+                .remaining
+                .as_ref()
+                .map_or(String::new(), |r| format!("   (quedan {r})"));
+            format!(
+                "▶ [{}/{}] Ejecutando comando: {cmd}{remaining}",
+                p.number, p.total
+            )
+        }
+        None => format!("Ejecutando comando: {cmd}"),
+    });
     let start = Instant::now();
 
     // Mientras dura el comando, Ctrl+C lo detiene a él (la terminal le envía SIGINT), pero no a bash-resume.
@@ -74,17 +108,12 @@ pub fn execute(cmd: &str, workdir: &Path, log: &Logger) -> bool {
         }
     };
 
+    let elapsed = start.elapsed();
     log.info(&format!(
         "Tiempo de ejecución: {}",
-        format_duration(start.elapsed())
+        format_duration(elapsed)
     ));
-    ok
-}
-
-/// Formatea una duración como `h:m:s` sin ceros a la izquierda, igual que la versión Python.
-fn format_duration(elapsed: Duration) -> String {
-    let secs = elapsed.as_secs();
-    format!("{}:{}:{}", secs / 3600, secs % 3600 / 60, secs % 60)
+    Execution { ok, elapsed }
 }
 
 #[cfg(test)]
@@ -104,21 +133,24 @@ mod tests {
     #[test]
     fn success_and_failure() -> io::Result<()> {
         let (dir, log) = setup("exec-basic")?;
-        assert!(execute("true", &dir, &log));
-        assert!(!execute("false", &dir, &log));
+        assert!(execute("true", &dir, &log, None).ok);
+        assert!(!execute("false", &dir, &log, None).ok);
         fs::remove_dir_all(&dir)
     }
 
     #[test]
     fn logs_exit_code_of_failed_command() -> io::Result<()> {
         let (dir, log) = setup("exec-code")?;
-        assert!(!execute("exit 3", &dir, &log));
+        assert!(!execute("exit 3", &dir, &log, None).ok);
         let content = fs::read_to_string(dir.join("migration.log"))?;
         assert!(
             content.contains("Comando fallido (exit code 3): exit 3"),
             "{content}"
         );
-        assert!(content.contains("Tiempo de ejecución: 0:0:0"), "{content}");
+        assert!(
+            content.contains("Tiempo de ejecución: 00:00:00"),
+            "{content}"
+        );
         fs::remove_dir_all(&dir)
     }
 
@@ -127,7 +159,7 @@ mod tests {
         let (dir, log) = setup("exec-workdir")?;
         let cmd = format!("test \"$(pwd)\" = '{}'", dir.display());
         assert!(
-            execute(&cmd, &dir, &log),
+            execute(&cmd, &dir, &log, None).ok,
             "el comando debe ver workdir como directorio actual"
         );
         fs::remove_dir_all(&dir)
@@ -136,7 +168,7 @@ mod tests {
     #[test]
     fn missing_workdir_is_a_failure() -> io::Result<()> {
         let (dir, log) = setup("exec-nodir")?;
-        assert!(!execute("true", &dir.join("no-existe"), &log));
+        assert!(!execute("true", &dir.join("no-existe"), &log, None).ok);
         fs::remove_dir_all(&dir)
     }
 
@@ -144,33 +176,41 @@ mod tests {
     fn pipeline_fails_if_any_part_fails() -> io::Result<()> {
         let (dir, log) = setup("exec-pipefail")?;
         assert!(
-            !execute("false | true", &dir, &log),
+            !execute("false | true", &dir, &log, None).ok,
             "pipefail: con sh daría éxito"
         );
-        assert!(execute("true | true", &dir, &log));
+        assert!(execute("true | true", &dir, &log, None).ok);
         fs::remove_dir_all(&dir)
     }
 
     #[test]
     fn unset_variable_is_an_error() -> io::Result<()> {
         let (dir, log) = setup("exec-nounset")?;
-        assert!(!execute(
-            "echo \"$VARIABLE_QUE_NO_EXISTE_XYZ\" > /dev/null",
-            &dir,
-            &log
-        ));
-        assert!(execute(
-            "echo \"${VARIABLE_QUE_NO_EXISTE_XYZ:-por_defecto}\" > /dev/null",
-            &dir,
-            &log
-        ));
+        assert!(
+            !execute(
+                "echo \"$VARIABLE_QUE_NO_EXISTE_XYZ\" > /dev/null",
+                &dir,
+                &log,
+                None
+            )
+            .ok
+        );
+        assert!(
+            execute(
+                "echo \"${VARIABLE_QUE_NO_EXISTE_XYZ:-por_defecto}\" > /dev/null",
+                &dir,
+                &log,
+                None
+            )
+            .ok
+        );
         fs::remove_dir_all(&dir)
     }
 
     #[test]
     fn errexit_stops_inside_the_line() -> io::Result<()> {
         let (dir, log) = setup("exec-errexit")?;
-        assert!(!execute("false; touch hecho", &dir, &log));
+        assert!(!execute("false; touch hecho", &dir, &log, None).ok);
         assert!(
             !dir.join("hecho").exists(),
             "-e para en el primer fallo de la línea"
@@ -181,11 +221,15 @@ mod tests {
     #[test]
     fn bash_syntax_is_available() -> io::Result<()> {
         let (dir, log) = setup("exec-bashisms")?;
-        assert!(execute(
-            "[[ -d . ]] && arr=(a b) && test \"${arr[1]}\" = b",
-            &dir,
-            &log
-        ));
+        assert!(
+            execute(
+                "[[ -d . ]] && arr=(a b) && test \"${arr[1]}\" = b",
+                &dir,
+                &log,
+                None
+            )
+            .ok
+        );
         fs::remove_dir_all(&dir)
     }
 
@@ -193,18 +237,11 @@ mod tests {
     fn stdin_is_an_empty_terminal() -> io::Result<()> {
         let (dir, log) = setup("exec-stdin")?;
         assert!(
-            execute("test -t 0", &dir, &log),
+            execute("test -t 0", &dir, &log, None).ok,
             "stdin es una terminal (docker -it la exige)"
         );
         // `cat` termina al instante: la terminal le da fin de entrada en vez de esperar al teclado.
-        assert!(execute("cat", &dir, &log));
+        assert!(execute("cat", &dir, &log, None).ok);
         fs::remove_dir_all(&dir)
-    }
-
-    #[test]
-    fn formats_duration_like_python() {
-        assert_eq!(format_duration(Duration::from_secs(0)), "0:0:0");
-        assert_eq!(format_duration(Duration::from_secs(3725)), "1:2:5");
-        assert_eq!(format_duration(Duration::from_millis(59_999)), "0:0:59");
     }
 }

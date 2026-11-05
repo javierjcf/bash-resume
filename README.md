@@ -63,7 +63,7 @@ bash-resume [WORKDIR] [-s|--steps DIR] [-p|--project DIR] [-y|--yes | -o|--once]
 |---|---|---|
 | `WORKDIR` | Directorio donde se ejecutan los comandos (por ejemplo, el doodba) | El guardado en el estado, o se pregunta |
 | `-s, --steps` | Carpeta con los ficheros de pasos | La guardada en el estado, o se pregunta |
-| `-p, --project` | Carpeta del proyecto: `state.json`, `migration.log` y `onerror` | El directorio actual |
+| `-p, --project` | Carpeta del proyecto: `state.json`, `times.json`, `migration.log` y `onerror` | El directorio actual |
 | `-y, --yes` | Continuar desde el punto guardado sin abrir la interfaz | Se abre la interfaz |
 | `-o, --once` | Ejecutar solo el comando del punto guardado, sin abrir la interfaz | Se abre la interfaz |
 
@@ -76,13 +76,14 @@ Al arrancar se abre la interfaz de terminal con el cursor sobre el punto guardad
 en una línea aparece el **popup de confirmación** con lo que se va a ejecutar; nunca se ejecuta nada sin pasar por él.
 
 ```
- Workdir: /opt/odoo/doodba-20  ·  Pasos: ~/migr/steps  ·  ● estado válido
+ Workdir: /opt/odoo/doodba-20  ·  Pasos: ~/migr/steps  ·  ● estado válido  ·  Total ~02:10:00
 ┌ Ficheros ─────┬ 02-migrar ──────────────────────────────────────────┐
 │   01-prep     │  [001] #> MIGRANDO                                  │
 │ > ● 02-migr ┌─ ¿Ejecutar? ────────────────────────────────────────┐ │
 │   03-limp   │ Fichero  02-migrar · línea 3                        │ │
 │             │ ▶ docker compose run --rm odoo --update all …       │ │
 │             │ Workdir  /opt/odoo/doodba-20                        │ │
+│             │ Tiempo   00:45:10 la última vez · quedan ~01:05:00  │ │
 │             │                                                     │ │
 │             │ [Enter] continuar  [o] una vez  [Esc] elegir otra línea  [q] salir │
 └─────────────└─────────────────────────────────────────────────────┘─┘
@@ -98,7 +99,8 @@ en una línea aparece el **popup de confirmación** con lo que se va a ejecutar;
 | `q` / Ctrl+C | Sale sin ejecutar nada |
 
 **En los paneles** (ficheros a la izquierda, sus líneas a la derecha, coloreadas por tipo; `●` marca el
-fichero del estado guardado y su línea sale en amarillo):
+fichero del estado guardado y su línea sale en amarillo; en azul y en columna a la izquierda, lo que tardó cada comando y cada fichero la
+última vez):
 
 | Tecla | Qué hace |
 |---|---|
@@ -110,6 +112,30 @@ fichero del estado guardado y su línea sale en amarillo):
 
 **Sin pasar por la interfaz** (opcional): `bash-resume -y` continúa desde el punto guardado y `bash-resume -o`
 ejecuta solo su comando. Sirven también por `ssh` sin `-t` o en un script.
+
+### Tiempos
+
+Cada comando que termina bien guarda lo que tardó en `times.json` (en el proyecto). Con eso, la siguiente vez
+(por ejemplo, en producción tras un ensayo) sabes cuánto queda:
+
+```
+▶ [13/40] Ejecutando comando: docker compose run --rm odoo --update all --stop-after-init   (quedan ~01:20:00)
+… salida de Odoo …
+Tiempo de ejecución: 00:47:02
+⏱ Fichero 02-migrar: 01:05:30
+…
+⏱ Resumen de tiempos:          ← solo cuando se completan todos los pasos
+   01-preparar   00:12:40
+   02-migrar     01:05:30
+   Total         01:18:10
+⏱ Esta ejecución: 00:52:10
+```
+
+- `[13/40]` es el número de comando entre todos los de los ficheros de pasos.
+- Los tiempos se buscan por el **texto del comando**: puedes añadir, mover o borrar líneas y renombrar ficheros
+  sin perder nada. Una línea cambiada cuenta como "sin tiempo" hasta que se ejecute.
+- Un fallo o un Ctrl+C no guardan tiempo. Los totales incluyen lo hecho antes de reanudar.
+- Para empezar de cero: `rm times.json`.
 
 ## Ficheros de pasos
 
@@ -146,7 +172,9 @@ docker compose run --rm odoo --update all --stop-after-init
 
 Ficheros del proyecto (el directorio actual, o `-p`):
 - `state.json`: por dónde va. Mismo formato que pyBashResume, así que se puede editar a mano.
-- `migration.log`: todo lo que pasa, con fecha y fichero de pasos (se va acumulando).
+- `times.json`: lo que tardó cada comando la última vez que fue bien. Se puede borrar sin problema.
+- `migration.log`: lo que hace bash-resume, con fecha y fichero de pasos (se va acumulando). La salida de los
+  comandos (por ejemplo, el log de Odoo) no entra: solo se ve en pantalla.
 - `onerror` (opcional): comandos que se ejecutan si algo falla, por ejemplo `telegram-send "❌ Error"`.
   Las líneas vacías y las que empiezan por `#` se ignoran.
 

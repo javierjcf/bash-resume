@@ -1,6 +1,7 @@
 //! Dibujo de la TUI con ratatui: cabecera, paneles, barra y popup de confirmación.
 
 use std::path::PathBuf;
+use std::time::Duration;
 
 use ratatui::Frame;
 use ratatui::layout::{Constraint, Flex, Layout, Rect};
@@ -9,7 +10,8 @@ use ratatui::text::{Line as TextLine, Span};
 use ratatui::widgets::{Block, Clear, List, ListItem, ListState, Paragraph, Wrap};
 
 use super::menu::{Menu, Panel};
-use crate::engine::parser::Kind;
+use crate::engine::parser::{Kind, Line};
+use crate::log::format_duration;
 
 /// Dibuja el menú: ficheros a la izquierda, líneas del fichero seleccionado a la derecha y una barra abajo.
 ///
@@ -25,18 +27,34 @@ pub(super) fn render(menu: &Menu, frame: &mut Frame) {
     let [files_area, lines_area] =
         Layout::horizontal([Constraint::Percentage(30), Constraint::Percentage(70)]).areas(main);
 
-    // Panel de ficheros: `●` en el del estado guardado.
+    // Panel de ficheros: `●` en el del estado guardado y, si hay tiempos, una columna con el de cada fichero.
+    let totals: Vec<Option<Duration>> = menu
+        .files
+        .iter()
+        .map(|f| {
+            let total = menu.timings.total(&f.lines);
+            (total.timed > 0).then_some(total.known)
+        })
+        .collect();
+    let with_times = totals.iter().any(Option::is_some);
     let files: Vec<ListItem> = menu
         .files
         .iter()
+        .zip(&totals)
         .enumerate()
-        .map(|(i, f)| {
+        .map(|(i, (f, total))| {
             let mark = if menu.saved.is_some_and(|(file, _)| file == i) {
                 "● "
             } else {
                 "  "
             };
-            ListItem::new(format!("{mark}{}", f.name))
+            let mut spans = vec![Span::raw(mark)];
+            if with_times {
+                spans.push(time_column(*total));
+                spans.push(Span::raw(" "));
+            }
+            spans.push(Span::raw(f.name.clone()));
+            ListItem::new(TextLine::from(spans))
         })
         .collect();
     let focused = menu.panel == Panel::Files;
@@ -47,15 +65,26 @@ pub(super) fn render(menu: &Menu, frame: &mut Frame) {
     let mut files_state = ListState::default().with_selected(Some(menu.file));
     frame.render_stateful_widget(files, files_area, &mut files_state);
 
-    // Panel de líneas del fichero seleccionado, coloreadas por tipo.
+    // Panel de líneas del fichero seleccionado, coloreadas por tipo. Si algún comando tiene tiempo, va junto al
+    // número (`[005 00:00:14]`) y el texto queda en columna.
     let lines = menu.current_lines();
+    let with_times = lines.iter().any(|l| command_time(menu, l).is_some());
     let items: Vec<ListItem> = lines
         .iter()
         .enumerate()
         .map(|(i, line)| {
             let saved = menu.saved == Some((menu.file, i));
-            ListItem::new(format!("[{:03}] {}", i + 1, line.text))
-                .style(line_style(line.kind, saved))
+            let spans = match (with_times, command_time(menu, line)) {
+                (true, Some(d)) => vec![
+                    Span::raw(format!("[{:03} ", i + 1)),
+                    time(format_duration(d)),
+                    Span::raw(format!("] {}", line.text)),
+                ],
+                // Sin tiempo: hueco del mismo ancho que ` 00:00:00`, para que el texto quede alineado.
+                (true, None) => vec![Span::raw(format!("[{:03}]{:9} {}", i + 1, "", line.text))],
+                (false, _) => vec![Span::raw(format!("[{:03}] {}", i + 1, line.text))],
+            };
+            ListItem::new(TextLine::from(spans)).style(line_style(line.kind, saved))
         })
         .collect();
     let title = match menu.files.get(menu.file) {
@@ -89,14 +118,53 @@ fn header_line(menu: &Menu) -> TextLine<'static> {
             Style::new().fg(Color::Yellow),
         )
     };
-    TextLine::from(vec![
+    let mut spans = vec![
         Span::raw(format!(
             " Workdir: {}  ·  Pasos: {}  ·  ",
             show_path(&menu.workdir),
             show_path(&menu.steps_dir)
         )),
         status,
-    ])
+    ];
+    if let Some(total) = menu.timings.remaining(&menu.files, 0, 0).describe() {
+        spans.push(Span::raw("  ·  "));
+        spans.push(time(format!("Total {total}")));
+    }
+    TextLine::from(spans)
+}
+
+/// Lo que tardó el comando de `line` la última vez (`None` si no es un comando o no hay tiempo).
+fn command_time(menu: &Menu, line: &Line) -> Option<Duration> {
+    (line.kind == Kind::Cmd)
+        .then(|| menu.timings.get(&line.text))
+        .flatten()
+}
+
+/// Columna de tiempo de un fichero: el tiempo, o un hueco del mismo ancho si no tiene.
+fn time_column(total: Option<Duration>) -> Span<'static> {
+    match total {
+        Some(d) => time(format_duration(d)),
+        None => Span::raw(" ".repeat(8)),
+    }
+}
+
+/// Un tiempo, en azul claro (como las etiquetas del popup; el amarillo es para la línea guardada).
+fn time(text: String) -> Span<'static> {
+    Span::styled(text, Style::new().fg(Color::LightBlue))
+}
+
+/// `00:45:10 la última vez · quedan ~01:05:00`, desde la línea seleccionada; `None` si no se sabe nada.
+fn popup_times(menu: &Menu, line: &Line) -> Option<String> {
+    let last = command_time(menu, line).map(|d| format!("{} la última vez", format_duration(d)));
+    let remaining = menu
+        .timings
+        .remaining(&menu.files, menu.file, menu.line)
+        .describe()
+        .map(|r| format!("quedan {r}"));
+    match (last, remaining) {
+        (Some(l), Some(r)) => Some(format!("{l} · {r}")),
+        (l, r) => l.or(r),
+    }
 }
 
 /// Popup de confirmación centrado, encima de los paneles: qué se va a ejecutar y con qué teclas.
@@ -111,7 +179,8 @@ fn render_confirm(menu: &Menu, frame: &mut Frame) {
         Span::styled(k, Style::new().fg(Color::Cyan).add_modifier(Modifier::BOLD))
     };
     let label = |l: &'static str| Span::styled(l, Style::new().fg(Color::LightBlue));
-    let text = vec![
+    let times = popup_times(menu, line);
+    let mut text = vec![
         TextLine::from(vec![
             label("Fichero  "),
             Span::raw(format!("{} · línea {}", file.name, menu.line + 1)),
@@ -128,6 +197,14 @@ fn render_confirm(menu: &Menu, frame: &mut Frame) {
             label("Pasos    "),
             Span::raw(show_path(&menu.steps_dir)),
         ]),
+    ];
+    if let Some(times) = &times {
+        text.push(TextLine::from(vec![
+            label("Tiempo   "),
+            Span::raw(times.clone()),
+        ]));
+    }
+    text.extend([
         TextLine::default(),
         TextLine::from(vec![
             key("[Enter]"),
@@ -139,14 +216,14 @@ fn render_confirm(menu: &Menu, frame: &mut Frame) {
             key("[q]"),
             Span::raw(" salir"),
         ]),
-    ];
+    ]);
 
-    // Alto: 2 de borde + 5 líneas fijas + las que ocupe el comando al partirse.
+    // Alto: 2 de borde + 5 líneas fijas (+1 con tiempos) + las que ocupe el comando al partirse.
     let area = frame.area();
     let width = area.width.saturating_sub(4).min(90);
     let inner = usize::from(width.saturating_sub(2)).max(1);
     let command_rows = (line.text.trim().chars().count() + 2).div_ceil(inner) as u16;
-    let popup = centered(area, width, 7 + command_rows);
+    let popup = centered(area, width, 7 + u16::from(times.is_some()) + command_rows);
 
     frame.render_widget(Clear, popup);
     let block = Block::bordered()
@@ -284,6 +361,40 @@ mod tests {
         assert!(screen.contains("03-c · línea 2"), "{screen}");
         assert!(screen.contains("/opt/odoo/doodba"), "workdir:\n{screen}");
         assert!(screen.contains("[Esc] elegir otra línea"), "{screen}");
+    }
+
+    #[test]
+    fn render_shows_saved_times() {
+        let mut timings = crate::engine::timings::Timings::default();
+        timings.record("echo a", Duration::from_secs(125));
+        timings.record("echo c", Duration::from_secs(3600));
+        let mut menu = Menu::new(files(), &state_at("01-a", 2, "echo a")).with_timings(timings);
+
+        let screen = draw(&menu, 110, 9);
+        assert!(
+            screen.contains("[002 00:02:05] echo a"),
+            "tiempo de la línea:\n{screen}"
+        );
+        assert!(
+            screen.contains("[003]          echo b"),
+            "sin tiempo, hueco y texto alineado:\n{screen}"
+        );
+        assert!(
+            screen.contains("● 00:02:05 01-a"),
+            "total del fichero:\n{screen}"
+        );
+        assert!(screen.contains("  01:00:00 03-c"), "{screen}");
+        assert!(
+            screen.contains("Total ~01:02:05, 1 sin tiempo"),
+            "cabecera:\n{screen}"
+        );
+
+        press(&mut menu, &[Key::Enter]);
+        let screen = draw(&menu, 110, 16);
+        assert!(
+            screen.contains("00:02:05 la última vez · quedan ~01:02:05, 1 sin tiempo"),
+            "popup:\n{screen}"
+        );
     }
 
     #[test]

@@ -7,5 +7,7 @@
 # Ficheros de ejecución locales
 state.json
 state.json.tmp
+times.json
+times.json.tmp
 migration.log
 /steps/
