@@ -1,6 +1,6 @@
 [package]
 name = "bash-resume"
-version = "0.2.0"
+version = "0.2.1"
 edition = "2024"
 description = "Ejecuta ficheros de pasos de shell línea a línea, recordando por dónde va para poder reanudar"
 license = "GPL-3.0-or-later"

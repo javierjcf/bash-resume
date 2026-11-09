@@ -5,6 +5,8 @@ las versiones siguen [SemVer](https://semver.org/lang/es/).
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-11-09
+
 ### Cambiado
 
 - **Log más compacto**: sin el hueco grande entre el nivel y el mensaje. `[fichero]` se rellena a 12 caracteres y el
@@ -93,6 +95,7 @@ misma funcionalidad y un único binario sin dependencias.
 - Se mantienen a propósito dos comportamientos del original: al reanudar sobre una parada `#.` se vuelve a parar,
   y al terminar todos los pasos el estado queda en el último comando.
 
-[Unreleased]: https://github.com/javierjcf/bash-resume/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/javierjcf/bash-resume/compare/v0.2.1...HEAD
+[0.2.1]: https://github.com/javierjcf/bash-resume/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/javierjcf/bash-resume/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/javierjcf/bash-resume/releases/tag/v0.1.0
