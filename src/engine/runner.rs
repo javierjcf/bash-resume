@@ -110,7 +110,8 @@ fn walk(
                         run_onerror(onerror, workdir, log);
                         return Ok(Outcome::Failed);
                     }
-                    timings.record(&line.text, run.elapsed);
+                    timings.record(file, &line.text, run.elapsed);
+                    timings.prune(file, &lines);
                     if let Err(e) = timings.save() {
                         log.warn(&format!("No se pudieron guardar los tiempos: {e}"));
                     }
@@ -125,7 +126,7 @@ fn walk(
                 }
             }
         }
-        let total = timings.total(&lines);
+        let total = timings.total(file, &lines);
         if total.timed + total.missing > 0 {
             log.info(&format!("🕒 Fichero {file}: {}", show_total(total)));
         }
@@ -162,7 +163,7 @@ fn log_summary(steps_dir: &Path, timings: &Timings, log: &Logger) {
     };
     let rows: Vec<(&str, Estimate)> = files
         .iter()
-        .map(|f| (f.name.as_str(), timings.total(&f.lines)))
+        .map(|f| (f.name.as_str(), timings.total(&f.name, &f.lines)))
         .filter(|(_, t)| t.timed + t.missing > 0)
         .collect();
     if rows.is_empty() {

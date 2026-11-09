@@ -40,7 +40,7 @@ pub(super) fn render(menu: &Menu, frame: &mut Frame) {
                 "  "
             };
             let name = Span::raw(format!("{mark}{}", f.name));
-            let total = menu.timings.total(&f.lines);
+            let total = menu.timings.total(&f.name, &f.lines);
             if total.timed == 0 {
                 return ListItem::new(TextLine::from(name));
             }
@@ -120,8 +120,9 @@ fn header_line(menu: &Menu) -> TextLine<'static> {
 
 /// Lo que tardó el comando de `line` la última vez (`None` si no es un comando o no hay tiempo).
 fn command_time(menu: &Menu, line: &Line) -> Option<Duration> {
+    let file = menu.files.get(menu.file)?;
     (line.kind == Kind::Cmd)
-        .then(|| menu.timings.get(&line.text))
+        .then(|| menu.timings.get(&file.name, &line.text))
         .flatten()
 }
 
@@ -361,8 +362,8 @@ mod tests {
     #[test]
     fn render_shows_saved_times() {
         let mut timings = crate::engine::timings::Timings::default();
-        timings.record("echo a", Duration::from_secs(125));
-        timings.record("echo c", Duration::from_secs(3600));
+        timings.record("01-a", "echo a", Duration::from_secs(125));
+        timings.record("03-c", "echo c", Duration::from_secs(3600));
         let mut menu = Menu::new(files(), &state_at("01-a", 2, "echo a")).with_timings(timings);
 
         let screen = draw(&menu, 110, 9);

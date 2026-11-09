@@ -5,6 +5,13 @@ las versiones siguen [SemVer](https://semver.org/lang/es/).
 
 ## [Unreleased]
 
+### Corregido
+
+- **Tiempos mezclados entre ficheros** (D17). Un mismo comando en varios ficheros (el `--update all` de cada versión
+  de una migración) compartía tiempo: se quedaba el de la última vez y todos los ficheros mostraban ese valor.
+  Ahora `times.json` guarda los tiempos por fichero, en `HH:MM:SS`, y olvida los comandos que ya no están en él.
+  El `times.json` de la 0.2.0 se descarta con un aviso: sus datos estaban mezclados.
+
 ## [0.2.0] - 2026-11-05
 
 ### Añadido

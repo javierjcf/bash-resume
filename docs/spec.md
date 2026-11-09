@@ -105,19 +105,24 @@ El formato es **compatible con la versión Python**:
 
 ```json
 {
-  "docker compose -f devel.yaml build --pull": 312,
-  "docker compose -f devel.yaml run --rm odoo --update all --stop-after-init": 2710
+  "09-mig": {
+    "docker compose -f devel.yaml build --pull": "00:05:12",
+    "docker compose -f devel.yaml run --rm odoo --update all --stop-after-init": "08:59:12"
+  },
+  "13-mig": {
+    "docker compose -f devel.yaml run --rm odoo --update all --stop-after-init": "02:19:37"
+  }
 }
 ```
 
-- Guarda lo que tardó (en segundos) **la última vez que terminó bien** cada comando. La clave es el texto del comando, sin espacios al inicio ni al final: sin fichero ni número de línea (D16).
+- Guarda lo que tardó (`HH:MM:SS`) **la última vez que terminó bien** cada comando, agrupado por fichero de pasos. Dentro de cada fichero, la clave es el texto del comando sin espacios al inicio ni al final, sin número de línea (D17). El mismo comando en dos ficheros tiene dos tiempos; repetido en el mismo fichero, comparte uno.
 - Solo se escribe cuando un comando termina bien. Un fallo o un Ctrl+C no guardan nada ni borran el tiempo anterior.
-- Nunca se vacía: cada comando sustituye su tiempo. Tras una ejecución completa, todos los comandos actuales tienen el de esa ejecución. Para empezar de cero, se borra `times.json`.
-- Los totales se calculan recorriendo los ficheros de pasos actuales y buscando cada comando: uno nuevo o cambiado cuenta como "sin tiempo", y el tiempo de uno borrado se queda en el fichero sin sumarse. Editar, mover o renombrar no requiere nada más.
+- Nunca se vacía entero: cada comando sustituye su tiempo, y al guardarlo se olvidan los comandos de ese fichero que ya no están en él. Tras una ejecución completa, todos los comandos actuales tienen el de esa ejecución. Para empezar de cero, se borra `times.json`.
+- Los totales se calculan recorriendo los ficheros de pasos actuales y buscando cada comando en su fichero: uno nuevo o cambiado cuenta como "sin tiempo". Añadir o mover líneas no pierde nada; renombrar un fichero pierde sus tiempos.
 - **Lo que queda** desde un comando: la suma de los tiempos de ese comando y de todos los siguientes, con `, N sin tiempo` si falta alguno. Si no se conoce ninguno, no se muestra.
 - **Tiempo de un fichero** y **total**: la suma de sus comandos en `times.json`, así que incluyen lo hecho antes de una reanudación.
 - **Formato:** `HH:MM:SS` en todo (`00:45:10`, `01:05:30`); lo estimado lleva `~`.
-- Si `times.json` falta, empieza vacío; si está corrupto o no se puede leer, se avisa y empieza vacío. Si no se puede guardar, se avisa y se sigue: los tiempos nunca detienen la ejecución.
+- Si `times.json` falta, empieza vacío; si está corrupto, tiene el formato antiguo (comando → segundos, de la 0.2.0) o no se puede leer, se avisa y empieza vacío. Si no se puede guardar, se avisa y se sigue: los tiempos nunca detienen la ejecución.
 - Se guarda de forma atómica, como `state.json`.
 
 ## 7. Flujo interactivo

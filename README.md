@@ -133,8 +133,9 @@ Cada comando que termina bien guarda lo que tardó en `times.json` (en el proyec
 ```
 
 - `[13/40]` es el número de comando entre todos los de los ficheros de pasos.
-- Los tiempos se buscan por el **texto del comando**: puedes añadir, mover o borrar líneas y renombrar ficheros
-  sin perder nada. Una línea cambiada cuenta como "sin tiempo" hasta que se ejecute.
+- Los tiempos se guardan **por fichero y texto del comando**: el mismo `--update all` en `09-mig` y en `13-mig` tiene
+  su propio tiempo. Puedes añadir, mover o borrar líneas sin perder los demás; una línea cambiada cuenta como "sin
+  tiempo" hasta que se ejecute. Renombrar un fichero pierde sus tiempos.
 - Un fallo o un Ctrl+C no guardan tiempo. Los totales incluyen lo hecho antes de reanudar.
 - Para empezar de cero: `rm times.json`.
 
@@ -173,7 +174,8 @@ docker compose run --rm odoo --update all --stop-after-init
 
 Ficheros del proyecto (el directorio actual, o `-p`):
 - `state.json`: por dónde va. Mismo formato que pyBashResume, así que se puede editar a mano.
-- `times.json`: lo que tardó cada comando la última vez que fue bien. Se puede borrar sin problema.
+- `times.json`: lo que tardó cada comando la última vez que fue bien, por fichero y en `HH:MM:SS`. Se puede borrar
+  sin problema.
 - `migration.log`: lo que hace bash-resume, con fecha y fichero de pasos (se va acumulando). La salida de los
   comandos (por ejemplo, el log de Odoo) no entra: solo se ve en pantalla.
 - `onerror` (opcional): comandos que se ejecutan si algo falla, por ejemplo `telegram-send "❌ Error"`.

@@ -22,6 +22,7 @@ Cada tarea deja el proyecto **compilando y con los tests en verde**. Las referen
 | T14 | [x] | El directorio actual es el proyecto (`-p/--project`) |
 | T15 | [x] | Todo en la TUI, con confirmación en popup, y flags `-y`/`-o` |
 | T16 | [x] | Tiempos por comando, fichero y total, con estimación |
+| T17 | [x] | Tiempos por fichero en `times.json` (el mismo comando en dos ficheros no se pisa) |
 
 ---
 
@@ -109,3 +110,11 @@ Cada tarea deja el proyecto **compilando y con los tests en verde**. Las referen
 - **Aceptación:** editar los pasos no da errores ni pierde tiempos de otras líneas; un fallo o un Ctrl+C no guardan tiempo; los totales incluyen lo hecho antes de reanudar; ninguna línea de log extra por comando; la salida de los comandos sigue sin entrar en `migration.log`; el recorrido no cambia.
 - **Rust:** `BTreeMap` con serde, `Duration` e `Instant`, `Option::then`, `slice::get(a..)`, `ListItem` con varios `Span`, patrón builder (`with_timings`).
 
+### T17 — Tiempos por fichero en `times.json` (D17)
+- **Problema:** con la clave solo por texto (D16), el `--update all` idéntico de cada versión de una migración
+  compartía tiempo: quedaba el de la última versión ejecutada y todos los ficheros mostraban ese valor.
+- **Hace:** `times.json` agrupa por fichero de pasos (`{ "09-mig": { "comando": "HH:MM:SS" } }`). Al guardar un
+  tiempo se olvidan los comandos que ya no están en ese fichero. El formato antiguo se descarta con un aviso.
+- **Aceptación:** el mismo comando en dos ficheros guarda dos tiempos; los totales por fichero cuadran con lo real;
+  el recorrido, `state.json` y "un fallo o Ctrl+C no guarda" no cambian.
+- **Rust:** `BTreeMap` anidado, `Option` con `?` dentro de `collect::<Option<_>>()`, `retain`.

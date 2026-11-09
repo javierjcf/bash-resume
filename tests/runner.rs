@@ -242,8 +242,15 @@ fn successful_commands_are_timed_and_summarized() -> io::Result<()> {
 
     let times = p.read("times.json");
     for cmd in ["echo a >> out", "echo b >> out", "echo c >> out"] {
-        assert!(times.contains(&format!("\"{cmd}\": 0")), "{times}");
+        assert!(
+            times.contains(&format!("\"{cmd}\": \"00:00:00\"")),
+            "{times}"
+        );
     }
+    assert!(
+        times.contains("\"01-a\": {") && times.contains("\"02-b\": {"),
+        "{times}"
+    );
     let log = p.read("migration.log");
     assert!(log.contains("⏳ [2/3] echo b >> out"), "{log}");
     assert!(log.contains("🕒 Fichero 01-a: 00:00:00"), "{log}");
@@ -261,7 +268,7 @@ fn estimate_uses_saved_times_and_counts_missing_ones() -> io::Result<()> {
     )?;
     fs::write(
         p.path("times.json"),
-        r#"{ "echo a >> out": 120, "echo b >> out": 60 }"#,
+        r#"{ "01-a": { "echo a >> out": "00:02:00", "echo b >> out": "00:01:00" } }"#,
     )?;
     assert_eq!(p.run(Mode::All)?, Outcome::Finished);
 
@@ -287,10 +294,13 @@ fn estimate_uses_saved_times_and_counts_missing_ones() -> io::Result<()> {
 #[test]
 fn failed_command_keeps_its_previous_time() -> io::Result<()> {
     let p = Project::new("times-fail", &[("01-a", "false\n")])?;
-    fs::write(p.path("times.json"), r#"{ "false": 99 }"#)?;
+    fs::write(
+        p.path("times.json"),
+        r#"{ "01-a": { "false": "00:01:39" } }"#,
+    )?;
     assert_eq!(p.run(Mode::All)?, Outcome::Failed);
 
-    assert!(p.read("times.json").contains("\"false\": 99"));
+    assert!(p.read("times.json").contains("\"false\": \"00:01:39\""));
     let log = p.read("migration.log");
     assert!(log.contains("🕒 Esta ejecución"), "{log}");
     assert!(
@@ -319,6 +329,32 @@ fn summary_after_resume_includes_earlier_commands() -> io::Result<()> {
     assert!(
         !log.contains("sin tiempo"),
         "el resumen cuenta `a` aunque no se repitió:\n{log}"
+    );
+    Ok(())
+}
+
+#[test]
+fn same_command_in_two_files_is_timed_per_file() -> io::Result<()> {
+    // Como el `--update all` de cada versión: el mismo texto en varios ficheros no comparte tiempo.
+    let p = Project::new(
+        "times-per-file",
+        &[("09-mig", "echo u >> out\n"), ("13-mig", "echo u >> out\n")],
+    )?;
+    fs::write(
+        p.path("times.json"),
+        r#"{ "09-mig": { "echo u >> out": "09:00:00", "viejo": "00:00:05" } }"#,
+    )?;
+    assert_eq!(p.run(Mode::All)?, Outcome::Finished);
+
+    let times = p.read("times.json");
+    assert!(times.contains("\"13-mig\": {"), "{times}");
+    assert!(
+        !times.contains("09:00:00"),
+        "se sustituye por lo de ahora:\n{times}"
+    );
+    assert!(
+        !times.contains("viejo"),
+        "lo que ya no está en el fichero se olvida:\n{times}"
     );
     Ok(())
 }

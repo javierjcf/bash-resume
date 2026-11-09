@@ -179,6 +179,8 @@ esperando para siempre); cerrar el maestro (da EOF, pero la PTY deja de ser una 
 
 ## D16 — Tiempos en `times.json`, por texto del comando
 
+*Sustituida por D17.*
+
 **Contexto.** Interesa saber cuánto tarda cada comando, cada fichero y la migración entera, y cuánto queda; sobre
 todo en producción tras un ensayo. Contar solo "esta ejecución" no sirve tras un fallo y una reanudación, y los
 ficheros de pasos se editan a menudo durante el desarrollo de una migración.
@@ -198,3 +200,20 @@ del resumen pueden diferir (el resumen suma la última vez buena de cada comando
 `state.json` (lo haría crecer y la versión Python podría perderlos); clave por fichero y línea (añadir una línea
 haría perder los tiempos de las siguientes); vaciar al empezar desde el principio (sin estimación justo cuando más
 sirve).
+
+## D17 — Tiempos en `times.json`, por fichero y texto del comando
+
+**Contexto.** Con D16, un mismo comando en varios ficheros compartía tiempo. En una migración de Odoo versión a
+versión, el `--update all` es idéntico en cada fichero (`09-mig` … `13-mig`) y tarda de 2 a 9 horas según la versión:
+se quedaba el de la última versión ejecutada y todos los ficheros mostraban ese valor (p. ej. `02:22:05` en cinco
+ficheros), con totales que no se parecían a la realidad. Además, el JSON en segundos y sin agrupar era difícil de leer.
+**Decisión.** `times.json` agrupa por nombre de fichero de pasos y, dentro, por texto del comando (recortado), con la
+duración de la **última vez que terminó bien** en `HH:MM:SS`. Sigue sin número de línea: añadir o mover líneas no pierde
+nada. Al guardar el tiempo de un comando se olvidan los de ese fichero que ya no están en él, para que no se acumulen
+claves viejas. Si `times.json` tiene el formato de D16, se avisa y se empieza vacío (sus datos estaban mezclados). El
+resto de D16 sigue igual: fallos o Ctrl+C no guardan, guardado atómico, los tiempos nunca detienen la ejecución.
+**Coste.** Renombrar un fichero de pasos pierde sus tiempos (y deja su bloque viejo hasta que se borre `times.json`).
+Un comando repetido dentro del **mismo** fichero sigue compartiendo tiempo. Se pierden los tiempos guardados con D16.
+**Alternativas.** Clave por fichero y número de línea (añadir una línea desplaza las demás); guardar también el total
+de cada fichero (redundante: se calcula, y podría no cuadrar tras editar); convertir el formato antiguo (sus datos
+son precisamente los que estaban mal).
