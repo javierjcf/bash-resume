@@ -196,7 +196,7 @@ Tras resolver las rutas (§2), todo pasa en la TUI (D12). En Python era una preg
 
 ## 8. Log (`migration.log` en el proyecto)
 
-- **Fichero** (en modo append), sin colores: `YYYY-mm-dd HH:MM:SS - [fichero] LEVEL:      mensaje`. `[fichero] LEVEL:` se rellena hasta 30 caracteres, así los mensajes quedan en columna aunque el nombre del fichero varíe; si no cabe, se deja un espacio. **[cambio]** En Python, `LEVEL   : mensaje` (nivel rellenado a 8).
+- **Fichero** (en modo append), sin colores: `YYYY-mm-dd HH:MM:SS - [fichero]   LEVEL   mensaje`. `[fichero]` se rellena hasta 12 caracteres (cabe `[18-copy-db]`) y el nivel, sin dos puntos, hasta 7 (`WARNING`), con un espacio tras cada uno: así los mensajes quedan en columna con los nombres habituales; uno más largo solo desplaza su línea. Sin fichero, el hueco se rellena igual. **[cambio]** En Python, `LEVEL   : mensaje` (nivel rellenado a 8).
 - **Consola (stderr):** el mismo formato, con colores ANSI (fecha azul; INFO verde, WARNING amarillo, ERROR rojo).
   **[cambio]** Solo hay colores si stderr es una terminal; redirigido a un fichero o una tubería, sale texto limpio.
 - Un error al escribir el log se ignora: el log nunca detiene la ejecución.
@@ -204,11 +204,13 @@ Tras resolver las rutas (§2), todo pasa en la TUI (D12). En Python era una preg
 - La salida de los comandos **no** se escribe en el log: va solo a la terminal (§4). El log solo tiene los mensajes de bash-resume.
 - Cada comando ocupa dos líneas, la de inicio y la de resultado, y cada una se entiende sola (sirven para `grep`):
   ```
-  … [02-migrar] INFO:             ⏳ [13/40] docker compose run --rm odoo --update all   (quedan ~01:20:00)
-  … [02-migrar] INFO:             ✅ [13/40] 00:47:02 docker compose run --rm odoo --update all
-  … [02-migrar] ERROR:            ❌ [13/40] 00:00:51 docker compose run --rm odoo --update all   (exit 1)
-  … [02-migrar] WARNING:          ⛔ [13/40] 00:00:03 docker compose run --rm odoo --update all   (Ctrl+C)
+  … [02-migrar]   INFO    ⏳ [ 9/40] --:--:-- docker compose run --rm odoo --update all   (quedan ~01:20:00)
+  … [02-migrar]   INFO    ✅ [ 9/40] 00:47:02 docker compose run --rm odoo --update all
+  … [02-migrar]   ERROR   ❌ [ 9/40] 00:00:51 docker compose run --rm odoo --update all   (exit 1)
+  … [02-migrar]   WARNING ⛔ [ 9/40] 00:00:03 docker compose run --rm odoo --update all   (Ctrl+C)
   ```
+  El comando queda siempre en la misma columna: el número de paso se rellena por la izquierda al ancho del total
+  (`[ 9/40]`) y la línea `⏳` lleva `--:--:--` donde la de resultado lleva la duración.
   Entre paréntesis, el motivo del fallo: el código de salida, la señal si murió por una o `no se pudo lanzar: <error>`.
 - Otros mensajes: `#>` tal cual, `🕒 Fichero …`,
   `🕒 Resumen de tiempos:` (con una fila por fichero y `Total`) y `🕒 Esta ejecución: …` (§6.1).

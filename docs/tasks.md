@@ -23,6 +23,7 @@ Cada tarea deja el proyecto **compilando y con los tests en verde**. Las referen
 | T15 | [x] | Todo en la TUI, con confirmación en popup, y flags `-y`/`-o` |
 | T16 | [x] | Tiempos por comando, fichero y total, con estimación |
 | T17 | [x] | Tiempos por fichero en `times.json` (el mismo comando en dos ficheros no se pisa) |
+| T18 | [x] | Log más compacto, con los comandos en columna |
 
 ---
 
@@ -118,3 +119,13 @@ Cada tarea deja el proyecto **compilando y con los tests en verde**. Las referen
 - **Aceptación:** el mismo comando en dos ficheros guarda dos tiempos; los totales por fichero cuadran con lo real;
   el recorrido, `state.json` y "un fallo o Ctrl+C no guarda" no cambian.
 - **Rust:** `BTreeMap` anidado, `Option` con `?` dentro de `collect::<Option<_>>()`, `retain`.
+
+### T18 — Log más compacto, con los comandos en columna
+- **Problema:** `[fichero] NIVEL:` se rellenaba hasta 30 caracteres: unos 14 espacios antes de cada mensaje. Además,
+  el comando empezaba en columnas distintas en la línea `⏳` (sin duración) y en la de resultado, y al pasar de
+  `[9/N]` a `[10/N]`.
+- **Hace:** `[fichero]` se rellena a 12 y el nivel, sin dos puntos, a 7. El número de paso se rellena al ancho del
+  total y la línea `⏳` lleva `--:--:--` en el hueco de la duración.
+- **Aceptación:** con `18-setup`, `18-mig` y `18-copy-db` los mensajes y los comandos quedan en columna; un nombre más
+  largo solo desplaza su línea; colores en consola como antes.
+- **Rust:** relleno con `{:<ancho$}` y `{:>ancho$}`.

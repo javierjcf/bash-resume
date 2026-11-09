@@ -49,11 +49,14 @@ impl Level {
     }
 }
 
-/// Ancho de `[fuente] NIVEL:` hasta el mensaje: así los mensajes quedan en columna aunque el nombre del fichero
-/// de pasos varíe un poco. Si no cabe, se deja un espacio.
-const PREFIX_WIDTH: usize = 30;
+/// Ancho mínimo de `[fuente]`: cabe `[18-copy-db]`, así los mensajes quedan en columna con los nombres habituales
+/// de los ficheros de pasos. Un nombre más largo solo desplaza su línea.
+const SOURCE_WIDTH: usize = 12;
 
-/// Construye una línea de log: `fecha - [fuente] NIVEL:      mensaje`, con o sin colores ANSI.
+/// Ancho del nivel: el de `WARNING`, el más largo.
+const LEVEL_WIDTH: usize = 7;
+
+/// Construye una línea de log: `fecha - [fuente]   NIVEL   mensaje`, con o sin colores ANSI.
 fn format_line(
     timestamp: &str,
     source: Option<&str>,
@@ -61,19 +64,16 @@ fn format_line(
     msg: &str,
     color: bool,
 ) -> String {
-    let source = match source {
-        Some(s) => format!("[{s}] "),
-        None => String::new(),
-    };
+    let source = source.map_or(String::new(), |s| format!("[{s}]"));
+    let source = format!("{source:<SOURCE_WIDTH$}");
     let name = level.name();
-    // Se cuenta sin los códigos de color, que no ocupan sitio en pantalla.
-    let used = source.chars().count() + name.len() + 1;
-    let pad = " ".repeat(PREFIX_WIDTH.saturating_sub(used).max(1));
+    // El relleno va fuera de los códigos de color, que no ocupan sitio en pantalla.
+    let pad = " ".repeat(LEVEL_WIDTH.saturating_sub(name.len()));
     if color {
         let c = level.color();
-        format!("{BLUE}{timestamp}{RESET} - {source}{c}{name}:{RESET}{pad}{c}{msg}{RESET}")
+        format!("{BLUE}{timestamp}{RESET} - {source} {c}{name}{RESET}{pad} {c}{msg}{RESET}")
     } else {
-        format!("{timestamp} - {source}{name}:{pad}{msg}")
+        format!("{timestamp} - {source} {name}{pad} {msg}")
     }
 }
 
@@ -150,31 +150,28 @@ mod tests {
     #[test]
     fn formats_plain_line() {
         let line = format_line(TS, Some("01-a"), Level::Info, "hola", false);
-        assert_eq!(
-            line,
-            "2026-11-04 10:00:00 - [01-a] INFO:                  hola"
-        );
+        assert_eq!(line, "2026-11-04 10:00:00 - [01-a]       INFO    hola");
     }
 
     #[test]
     fn messages_line_up_whatever_the_file_name() {
         let column = |line: String| line.find("msg");
         let a = format_line(TS, Some("01-a"), Level::Info, "msg", false);
-        let b = format_line(TS, Some("02-migracion"), Level::Warning, "msg", false);
+        let b = format_line(TS, Some("18-copy-db"), Level::Warning, "msg", false);
         let c = format_line(TS, None, Level::Error, "msg", false);
         assert_eq!(column(a.clone()), column(b));
         assert_eq!(column(a), column(c));
         let long = format_line(TS, Some(&"x".repeat(40)), Level::Info, "msg", false);
-        assert!(long.contains("INFO: msg"), "si no cabe, un espacio: {long}");
+        assert!(
+            long.contains("x] INFO    msg"),
+            "si no cabe, un espacio: {long}"
+        );
     }
 
     #[test]
     fn omits_source_when_none() {
         let line = format_line(TS, None, Level::Warning, "aviso", false);
-        assert_eq!(
-            line,
-            "2026-11-04 10:00:00 - WARNING:                      aviso"
-        );
+        assert_eq!(line, "2026-11-04 10:00:00 -              WARNING aviso");
     }
 
     #[test]
@@ -182,7 +179,7 @@ mod tests {
         let line = format_line(TS, None, Level::Error, "mal", true);
         assert_eq!(
             line,
-            "\x1b[34m2026-11-04 10:00:00\x1b[0m - \x1b[31mERROR:\x1b[0m                        \x1b[31mmal\x1b[0m"
+            "\x1b[34m2026-11-04 10:00:00\x1b[0m -              \x1b[31mERROR\x1b[0m   \x1b[31mmal\x1b[0m"
         );
     }
 
@@ -202,14 +199,8 @@ mod tests {
         assert_eq!(lines.len(), 3, "{content}");
         assert_eq!(lines[0], "línea previa", "append, no sobrescribe");
         // Las líneas empiezan por la fecha (19 caracteres); comprobamos el resto.
-        assert_eq!(
-            &lines[1][TS.len()..],
-            " - INFO:                         sin fuente"
-        );
-        assert_eq!(
-            &lines[2][TS.len()..],
-            " - [01-a] ERROR:                 con fuente"
-        );
+        assert_eq!(&lines[1][TS.len()..], " -              INFO    sin fuente");
+        assert_eq!(&lines[2][TS.len()..], " - [01-a]       ERROR   con fuente");
         fs::remove_dir_all(&dir)
     }
 }

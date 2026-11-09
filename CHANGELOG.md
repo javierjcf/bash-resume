@@ -5,6 +5,13 @@ las versiones siguen [SemVer](https://semver.org/lang/es/).
 
 ## [Unreleased]
 
+### Cambiado
+
+- **Log más compacto**: sin el hueco grande entre el nivel y el mensaje. `[fichero]` se rellena a 12 caracteres y el
+  nivel, sin dos puntos, a 7 (`[18-setup]   INFO    ✅ …`). Los comandos quedan en columna: el número de paso se
+  rellena (`[  9/197]`) y la línea `⏳` lleva `--:--:--` en el sitio de la duración. Quien filtre con `grep "INFO:"`
+  debe usar ahora `grep " INFO "`.
+
 ### Corregido
 
 - **Tiempos mezclados entre ficheros** (D17). Un mismo comando en varios ficheros (el `--update all` de cada versión

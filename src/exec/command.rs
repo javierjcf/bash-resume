@@ -11,6 +11,10 @@ use crate::log::{Logger, format_duration};
 /// se usa una variable sin definir y `-o pipefail` hace fallar una tubería si falla cualquiera de sus partes.
 const BASH_OPTIONS: [&str; 4] = ["-e", "-u", "-o", "pipefail"];
 
+/// Hueco del ancho de una duración (`HH:MM:SS`) en la línea `⏳`, para que el comando quede en la misma columna que
+/// en la de resultado.
+const NO_DURATION: &str = "--:--:--";
+
 /// Resultado de ejecutar un comando.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Execution {
@@ -37,14 +41,18 @@ pub struct Progress {
 /// raw y Ctrl+C siempre llega como señal a bash-resume, que lo trata como fallo aunque el comando salga con 0.
 ///
 /// En el log, dos líneas por comando, cada una completa por sí misma (spec §8): al empezar,
-/// `⏳ [13/40] comando   (quedan ~01:20:00)`, y al terminar, `✅ [13/40] 00:00:07 comando` o
-/// `❌ [13/40] 00:00:51 comando   (exit 1)`. Sin `progress` (como en `onerror`), sin `[n/N]` ni estimación.
+/// `⏳ [13/40] --:--:-- comando   (quedan ~01:20:00)`, y al terminar, `✅ [13/40] 00:00:07 comando` o
+/// `❌ [13/40] 00:00:51 comando   (exit 1)`. El hueco `--:--:--` y el número rellenado (`[ 9/40]`) dejan el comando
+/// siempre en la misma columna. Sin `progress` (como en `onerror`), sin `[n/N]` ni estimación.
 pub fn execute(cmd: &str, workdir: &Path, log: &Logger, progress: Option<&Progress>) -> Execution {
-    let number = progress.map_or(String::new(), |p| format!("[{}/{}] ", p.number, p.total));
+    let number = progress.map_or(String::new(), |p| {
+        let width = p.total.to_string().len();
+        format!("[{:>width$}/{}] ", p.number, p.total)
+    });
     let remaining = progress
         .and_then(|p| p.remaining.as_ref())
         .map_or(String::new(), |r| format!("   (quedan {r})"));
-    log.info(&format!("⏳ {number}{cmd}{remaining}"));
+    log.info(&format!("⏳ {number}{NO_DURATION} {cmd}{remaining}"));
     let start = Instant::now();
 
     // Mientras dura el comando, Ctrl+C lo detiene a él (la terminal le envía SIGINT), pero no a bash-resume.
@@ -128,17 +136,38 @@ mod tests {
         assert!(!execute("exit 3", &dir, &log, None).ok);
         let content = fs::read_to_string(dir.join("migration.log"))?;
         assert!(
-            content.contains("INFO:                         ⏳ exit 3\n"),
+            content.contains(" INFO    ⏳ --:--:-- exit 3\n"),
             "{content}"
         );
         assert!(
-            content.contains("ERROR:                        ❌ 00:00:00 exit 3   (exit 3)\n"),
+            content.contains(" ERROR   ❌ 00:00:00 exit 3   (exit 3)\n"),
             "{content}"
         );
         assert_eq!(
             content.lines().count(),
             2,
             "dos líneas por comando:\n{content}"
+        );
+        fs::remove_dir_all(&dir)
+    }
+
+    #[test]
+    fn pads_step_number_so_commands_line_up() -> io::Result<()> {
+        let (dir, log) = setup("exec-number")?;
+        let progress = Progress {
+            number: 9,
+            total: 197,
+            remaining: None,
+        };
+        assert!(execute("true", &dir, &log, Some(&progress)).ok);
+        let content = fs::read_to_string(dir.join("migration.log"))?;
+        assert!(
+            content.contains("⏳ [  9/197] --:--:-- true\n"),
+            "{content}"
+        );
+        assert!(
+            content.contains("✅ [  9/197] 00:00:00 true\n"),
+            "{content}"
         );
         fs::remove_dir_all(&dir)
     }

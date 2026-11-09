@@ -119,7 +119,7 @@ Cada comando que termina bien guarda lo que tardó en `times.json` (en el proyec
 (por ejemplo, en producción tras un ensayo) sabes cuánto queda:
 
 ```
-⏳ [13/40] docker compose run --rm odoo --update all --stop-after-init   (quedan ~01:20:00)
+⏳ [13/40] --:--:-- docker compose run --rm odoo --update all --stop-after-init   (quedan ~01:20:00)
 … salida de Odoo (solo en pantalla, no en migration.log) …
 ✅ [13/40] 00:47:02 docker compose run --rm odoo --update all --stop-after-init
                               ← o «❌ … (exit 1)» si falla, «(Ctrl+C)» si lo paras
