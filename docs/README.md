@@ -9,6 +9,7 @@
 | [ideas.md](ideas.md) | **Qué se podría hacer**: valoración de la app y mejoras propuestas. |
 | [plan.md](plan.md) | El plan inicial de la reescritura, actualizado con las decisiones. |
 | [cheatsheet.md](cheatsheet.md) | Chuleta de comandos de cargo y rustup, y cómo probar bash-resume a mano. |
+| [release.md](release.md) | Cómo publicar una release (`scripts/release.sh` + GitHub Actions). |
 | [learning.md](learning.md) | **Qué hemos aprendido**: diario de conceptos de Rust por tarea. |
 
 ## Flujo de trabajo

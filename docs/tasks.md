@@ -24,6 +24,7 @@ Cada tarea deja el proyecto **compilando y con los tests en verde**. Las referen
 | T16 | [x] | Tiempos por comando, fichero y total, con estimación |
 | T17 | [x] | Tiempos por fichero en `times.json` (el mismo comando en dos ficheros no se pisa) |
 | T18 | [x] | Log más compacto, con los comandos en columna |
+| T19 | [x] | Releases automáticas: `scripts/release.sh` + GitHub Actions al subir el tag |
 
 ---
 
@@ -129,3 +130,12 @@ Cada tarea deja el proyecto **compilando y con los tests en verde**. Las referen
 - **Aceptación:** con `18-setup`, `18-mig` y `18-copy-db` los mensajes y los comandos quedan en columna; un nombre más
   largo solo desplaza su línea; colores en consola como antes.
 - **Rust:** relleno con `{:<ancho$}` y `{:>ancho$}`.
+
+### T19 — Releases automáticas (D18)
+- **Problema:** publicar una release eran unos 15 comandos a mano (versión, CHANGELOG, tag, build musl, tar, checksum,
+  `gh release`), con trampas conocidas: versión y tag distintos, el paquete colado en un commit, Rust y musl en local.
+- **Hace:** `scripts/release.sh X.Y.Z` comprueba, edita `Cargo.toml`, `Cargo.lock` y `CHANGELOG.md`, pide confirmación
+  y hace commit, tag y push. `.github/workflows/release.yml`, al recibir el tag, comprueba, compila, empaqueta y publica
+  la release con la sección del CHANGELOG como notas, y prueba `install.sh`. Guía en `docs/release.md`.
+- **Aceptación:** con `[Unreleased]` relleno, `scripts/release.sh 0.2.1` deja la release publicada sin más pasos; un
+  "no" en la confirmación deja los ficheros como estaban; un tag que no coincide con `Cargo.toml` no publica nada.

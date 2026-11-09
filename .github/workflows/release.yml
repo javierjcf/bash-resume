@@ -1,0 +1,87 @@
+# Publica una release al subir un tag vX.Y.Z (D18). El tag lo crea scripts/release.sh; ver docs/release.md.
+#
+# Comprueba que el tag y Cargo.toml coinciden, pasa fmt/clippy/tests, compila el binario estático (musl),
+# lo empaqueta con su checksum y crea la release con la sección de esa versión del CHANGELOG como notas.
+# Después instala la release con install.sh, como lo haría un usuario, y comprueba la versión.
+name: Release
+
+on:
+  push:
+    tags: ['v[0-9]+.[0-9]+.[0-9]+']
+
+permissions:
+  contents: write # crear la release y subir los ficheros
+
+env:
+  TARGET: x86_64-unknown-linux-musl
+  CARGO_TERM_COLOR: always
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: El tag coincide con Cargo.toml
+        run: |
+          version=$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml | head -n 1)
+          if [ "v$version" != "$GITHUB_REF_NAME" ]; then
+            echo "::error::El tag es $GITHUB_REF_NAME pero Cargo.toml dice $version"
+            exit 1
+          fi
+
+      - name: Notas de la release (sección del CHANGELOG)
+        # Las líneas entre "## [X.Y.Z]" y la cabecera de la versión anterior, sin las dos cabeceras.
+        run: |
+          version=${GITHUB_REF_NAME#v}
+          sed -n "/^## \[$version\]/,/^## \[/{//!p}" CHANGELOG.md > notes.md
+          if ! grep -q '[^[:space:]]' notes.md; then
+            echo "::error::CHANGELOG.md no tiene sección [$version] o está vacía"
+            exit 1
+          fi
+          cat notes.md
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ env.TARGET }}
+          components: rustfmt, clippy
+
+      - name: Herramientas para musl
+        run: sudo apt-get update && sudo apt-get install -y musl-tools
+
+      - name: Formato, clippy y tests
+        run: |
+          cargo fmt --check
+          cargo clippy --all-targets --locked -- -D warnings
+          cargo test --locked
+
+      - name: Binario estático
+        run: |
+          cargo build --release --locked --target "$TARGET"
+          file "target/$TARGET/release/bash-resume" | tee /dev/stderr | grep -q 'static'
+
+      - name: Empaquetar y publicar
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          V=$GITHUB_REF_NAME
+          N=bash-resume-$V-$TARGET
+          mkdir "$N"
+          cp "target/$TARGET/release/bash-resume" README.md CHANGELOG.md "$N/"
+          tar czf "$N.tar.gz" "$N"
+          sha256sum "$N.tar.gz" > "$N.tar.gz.sha256"
+          gh release create "$V" "$N.tar.gz" "$N.tar.gz.sha256" \
+            --title "bash-resume $V" --notes-file notes.md --verify-tag
+
+  # Lo mismo que hará un usuario: instalar la última release con install.sh.
+  check-install:
+    needs: release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: install.sh instala esta versión
+        run: |
+          sh install.sh
+          installed=$("$HOME/.local/bin/bash-resume" --version)
+          echo "$installed"
+          [ "$installed" = "bash-resume ${GITHUB_REF_NAME#v}" ]

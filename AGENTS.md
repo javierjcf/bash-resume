@@ -19,6 +19,7 @@ permite reanudar o elegir otra línea en una interfaz de terminal. Es una reescr
 - Una decisión nueva se añade al final de `decisions.md` con el siguiente número; una que cambia no se borra,
   se marca *Sustituida por Dn*.
 - Haz commits solo cuando el usuario lo pida.
+- Releases: [docs/release.md](docs/release.md). Las lanza el usuario con `scripts/release.sh`; no subas tags.
 
 ## Commits
 

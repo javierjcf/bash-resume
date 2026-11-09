@@ -217,3 +217,21 @@ Un comando repetido dentro del **mismo** fichero sigue compartiendo tiempo. Se p
 **Alternativas.** Clave por fichero y número de línea (añadir una línea desplaza las demás); guardar también el total
 de cada fichero (redundante: se calcula, y podría no cuadrar tras editar); convertir el formato antiguo (sus datos
 son precisamente los que estaban mal).
+
+## D18 — Releases: script local para preparar, GitHub Actions para publicar
+
+**Contexto.** Publicar era una chuleta de unos 15 comandos: versión en `Cargo.toml`, CHANGELOG, commit, tag, compilar
+con musl, empaquetar, checksum y `gh release create`. Era fácil equivocarse (versión y tag distintos, el paquete en un
+commit) y hacía falta Rust con el target musl en la máquina de quien publica.
+**Decisión.** Dos mitades. `scripts/release.sh X.Y.Z` hace lo que necesita una decisión humana: comprueba el repo,
+pasa `[Unreleased]` a `[X.Y.Z]`, sube la versión (también en `Cargo.lock`, sin necesitar cargo), enseña el diff, pide
+confirmación y hace commit, tag y `push --atomic`. El disparador es el tag: `.github/workflows/release.yml` comprueba que
+coincide con `Cargo.toml`, pasa fmt/clippy/tests, compila el binario estático, lo empaqueta con su `.sha256` y crea la
+release ya publicada (no borrador) con la sección del CHANGELOG como notas; después la instala con `install.sh`.
+El CHANGELOG se sigue escribiendo a mano, al cerrar cada tarea.
+**Coste.** Se depende de GitHub Actions (gratis en repos públicos) y de dos acciones de terceros (`actions/checkout`,
+`dtolnay/rust-toolchain`); no añade crates. Si el workflow falla tras subir el tag, hay que mover el tag a mano.
+**Alternativas.** Todo en un script local (necesita musl en local y el binario depende de esa máquina); botón
+`workflow_dispatch` que también edita y hace commit (un robot escribiendo en `main`); release-plz (genera el CHANGELOG
+desde los commits y sustituiría al escrito a mano); cargo-dist (mucha maquinaria para un solo binario Linux);
+releases en borrador (`install.sh` no las ve y añade un paso manual).

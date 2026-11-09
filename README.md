@@ -221,6 +221,7 @@ cargo fmt
 ```
 
 - `demo/` tiene pasos de ejemplo para probar: `cargo run -- . -s demo/steps -p demo`.
+- Publicar una versión: `scripts/release.sh X.Y.Z`; GitHub Actions compila y publica ([docs/release.md](docs/release.md)).
 - Documentación: [comportamiento](docs/spec.md) · [decisiones](docs/decisions.md) ·
   [arquitectura](docs/architecture.md) · [tareas](docs/tasks.md) · [ideas](docs/ideas.md) · [comandos](docs/cheatsheet.md) ·
   [flujo de trabajo](docs/README.md).
